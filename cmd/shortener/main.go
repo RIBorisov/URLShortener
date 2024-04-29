@@ -26,7 +26,7 @@ var URLMap = map[string]string{}
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		getOriginalUrl(w, r)
+		getOriginalURL(w, r)
 	case http.MethodPost:
 		shortURL(w, r)
 	default:
@@ -44,42 +44,42 @@ func shortURL(w http.ResponseWriter, r *http.Request) {
 	// 	http.Error(w, "Url value should be sent as 'text/plain'", http.StatusBadRequest)
 	// }
 
-	longUrl, err := io.ReadAll(r.Body)
+	longURL, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Error when reading body value", http.StatusBadRequest)
 	}
 	shortURL := "EwHXdJfB"
-	URLMap[shortURL] = string(longUrl)
+	URLMap[shortURL] = string(longURL)
 
 	setHeaders(w)
-	responseValue := generateUrl(r, shortURL)
+	responseValue := generateURL(r, shortURL)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(responseValue))
 }
 
-func getOriginalUrl(w http.ResponseWriter, r *http.Request) {
+func getOriginalURL(w http.ResponseWriter, r *http.Request) {
 	shortURL := strings.TrimPrefix(r.URL.Path, "/")
 	setHeaders(w)
 
-	longUrl := URLMap[shortURL]
-	if longUrl == "" {
+	longURL := URLMap[shortURL]
+	if longURL == "" {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	originalUrl := generateUrl(r, shortURL)
-	redirectToUrl(w, r, longUrl, originalUrl)
+	originalURL := generateURL(r, shortURL)
+	redirectToURL(w, r, longURL, originalURL)
 
-	w.Write([]byte(longUrl))
+	w.Write([]byte(longURL))
 }
 
 func setHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 }
 
-func redirectToUrl(w http.ResponseWriter, r *http.Request, redirectTo string, originalUrl string) {
-	w.Header().Set("Location", originalUrl)
+func redirectToURL(w http.ResponseWriter, r *http.Request, redirectTo string, originalURL string) {
+	w.Header().Set("Location", originalURL)
 	http.Redirect(w, r, redirectTo, http.StatusTemporaryRedirect)
 }
 
-func generateUrl(r *http.Request, shortURL string) string {
+func generateURL(r *http.Request, shortURL string) string {
 	return "http://" + r.Host + "/" + shortURL
 }

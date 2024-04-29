@@ -21,7 +21,7 @@ func main() {
 
 }
 
-var urls = map[string]string{}
+var URLMap = map[string]string{}
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -49,7 +49,7 @@ func shortURL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error when reading body value", http.StatusBadRequest)
 	}
 	shortURL := "EwHXdJfB"
-	urls[shortURL] = string(longUrl)
+	URLMap[shortURL] = string(longUrl)
 
 	setHeaders(w)
 	responseValue := generateUrl(r, shortURL)
@@ -61,7 +61,7 @@ func getOriginalUrl(w http.ResponseWriter, r *http.Request) {
 	shortURL := strings.TrimPrefix(r.URL.Path, "/")
 	setHeaders(w)
 
-	longUrl := urls[shortURL]
+	longUrl := URLMap[shortURL]
 	if longUrl == "" {
 		w.WriteHeader(http.StatusBadRequest)
 	}

@@ -15,10 +15,8 @@ func main() {
 
 	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
-		log.Fatal(err)
 		panic(err)
 	}
-
 }
 
 var URLMap = map[string]string{}
@@ -39,10 +37,12 @@ func errorMethodHandler(w http.ResponseWriter) {
 }
 
 func shortURL(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	// if r.Header.Get("Content-Type") != "text/plain" {
-	// 	http.Error(w, "Url value should be sent as 'text/plain'", http.StatusBadRequest)
-	// }
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(r.Body)
 
 	longURL, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -54,7 +54,10 @@ func shortURL(w http.ResponseWriter, r *http.Request) {
 	setHeaders(w)
 	responseValue := generateURL(r, shortURL)
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(responseValue))
+	_, err = w.Write([]byte(responseValue))
+	if err != nil {
+		return
+	}
 }
 
 func getOriginalURL(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +71,10 @@ func getOriginalURL(w http.ResponseWriter, r *http.Request) {
 	originalURL := generateURL(r, shortURL)
 	redirectToURL(w, r, longURL, originalURL)
 
-	w.Write([]byte(longURL))
+	_, err := w.Write([]byte(longURL))
+	if err != nil {
+		return
+	}
 }
 
 func setHeaders(w http.ResponseWriter) {

@@ -1,3 +1,3 @@
-module github.com/RIBorisov/URLShortener
+module shortener
 
 go 1.21.6

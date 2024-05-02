@@ -1,14 +1,14 @@
 package server
 
 import (
-	h "github.com/RIBorisov/URLShortener/handlers"
 	"log"
 	"net/http"
+	"shortener/internal/handlers"
 )
 
 func RunServer() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", h.RootHandler)
+	mux.HandleFunc("/", handlers.RootHandler)
 
 	log.Println("Server started on port 8080")
 

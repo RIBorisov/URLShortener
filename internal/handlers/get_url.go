@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/RIBorisov/URLShortener/internal/storage"
 	"net/http"
+	"shortener/internal/storage"
 	"strings"
 )
 

@@ -3,12 +3,12 @@ package server
 import (
 	"log"
 	"net/http"
-	"shortener/internal/handlers"
+	"shortener/internal/handlers/routes"
 )
 
 func RunServer() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handlers.RootHandler)
+	mux.HandleFunc("/", routes.RootHandler)
 
 	log.Println("Server started on port 8080")
 

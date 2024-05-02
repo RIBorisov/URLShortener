@@ -1,3 +1,8 @@
 package storage
 
-type URLs map[string]string
+type URLMapper interface {
+	Get(shortLink string) (string, bool)
+	Set(shortLink, longLink string)
+	Count() int
+	// Delete() Not implemented yet
+}

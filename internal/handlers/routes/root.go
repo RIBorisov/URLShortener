@@ -1,6 +1,9 @@
-package handlers
+package routes
 
-import "net/http"
+import (
+	"net/http"
+	"shortener/internal/handlers"
+)
 
 func RootHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -9,6 +12,6 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		SaveURLHandler(w, r)
 	default:
-		ErrorMethodHandler(w, []string{"POST", "GET"})
+		handlers.ErrorMethodHandler(w, []string{"POST", "GET"})
 	}
 }

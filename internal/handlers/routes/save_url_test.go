@@ -42,7 +42,6 @@ func TestSaveURLHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			SaveURLHandler(w, r)
 			res := w.Result()
-			assert.Equal(t, tt.want.statusCode, res.StatusCode)
 			defer func(Body io.ReadCloser) {
 				err := Body.Close()
 				if err != nil {
@@ -50,6 +49,7 @@ func TestSaveURLHandler(t *testing.T) {
 					return
 				}
 			}(r.Body)
+			assert.Equal(t, tt.want.statusCode, res.StatusCode)
 			resBody, err := io.ReadAll(res.Body)
 			require.NoError(t, err)
 			assert.NotEmpty(t, resBody)

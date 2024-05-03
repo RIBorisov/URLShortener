@@ -1,11 +1,11 @@
 package handlers
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
 func ErrorMethodHandler(w http.ResponseWriter, allowedMethods []string) {
-	methodsString := ""
-	for _, method := range allowedMethods {
-		methodsString = methodsString + ", " + method
-	}
-	http.Error(w, "Only [%s] methods are allowed", http.StatusMethodNotAllowed)
+	allowed := fmt.Sprintf("Only %s methods allowed", allowedMethods)
+	http.Error(w, allowed, http.StatusMethodNotAllowed)
 }

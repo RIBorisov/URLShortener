@@ -42,13 +42,11 @@ func TestSaveURLHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			SaveURLHandler(w, r)
 			res := w.Result()
-			defer func(Body io.ReadCloser) {
-				err := Body.Close()
-				if err != nil {
-					fmt.Println("Ошибка при закрытии тела ответа")
-					return
+			defer func() {
+				if err := res.Body.Close(); err != nil {
+					fmt.Println("Ошибка при закрытии тела ответа!")
 				}
-			}(r.Body)
+			}()
 			assert.Equal(t, tt.want.statusCode, res.StatusCode)
 			resBody, err := io.ReadAll(res.Body)
 			require.NoError(t, err)

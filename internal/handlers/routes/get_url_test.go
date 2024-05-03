@@ -2,6 +2,8 @@ package routes
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"shortener/internal/storage"
@@ -46,6 +48,9 @@ func TestGetURLHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			GetURLHandler(w, r)
 			res := w.Result()
+			defer res.Body.Close()
+			_, err := io.ReadAll(res.Body)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want.statusCode, res.StatusCode)
 		})
 	}

@@ -1,24 +1,24 @@
 package storage
 
 type SimpleURLMapper struct {
-	urls map[string]string
+	URLs map[string]string
 }
 
 func NewSimpleURLMapper() *SimpleURLMapper {
-	return &SimpleURLMapper{urls: make(map[string]string)}
+	return &SimpleURLMapper{URLs: make(map[string]string)}
 }
 
 func (m *SimpleURLMapper) Get(shortLink string) (string, bool) {
-	longLink, ok := m.urls[shortLink]
+	longLink, ok := m.URLs[shortLink]
 	return longLink, ok
 }
 
 func (m *SimpleURLMapper) Set(shortLink, longLink string) {
-	m.urls[shortLink] = longLink
+	m.URLs[shortLink] = longLink
 }
 
 func (m *SimpleURLMapper) Count() int {
-	return len(m.urls)
+	return len(m.URLs)
 }
 
 var Mapper = NewSimpleURLMapper()

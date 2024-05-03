@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"fmt"
 	"net/http"
 	"shortener/internal/handlers"
 	"shortener/internal/storage"
@@ -13,7 +12,6 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	handlers.SetHeadersHandler(w)
 
 	mapper := storage.Mapper
-	fmt.Println("Mapper objects: ", mapper.Count())
 	longLink, ok := mapper.Get(shortLink)
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)

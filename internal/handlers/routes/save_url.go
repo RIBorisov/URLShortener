@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -25,7 +24,6 @@ func SaveURLHandler(w http.ResponseWriter, r *http.Request) {
 	shortLink := generateRandomString(8)
 	mapper := storage.Mapper
 	mapper.Set(shortLink, string(longLink))
-	fmt.Println("Mapper objects: ", mapper.Count())
 	handlers.SetHeadersHandler(w)
 	responseValue := handlers.GenerateURL(r, shortLink)
 	w.WriteHeader(http.StatusCreated)

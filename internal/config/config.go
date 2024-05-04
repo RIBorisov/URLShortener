@@ -12,7 +12,7 @@ type Config struct {
 }
 
 type HTTPServer struct {
-	baseUrl     string        `yaml:"base_url" env-default:"localhost:8080"`
+	baseURL     string        `yaml:"base_url" env-default:"localhost:8080"`
 	timeout     time.Duration `yaml:"timeout" env-default:"4s"`
 	idleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
 }

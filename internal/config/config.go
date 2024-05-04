@@ -12,12 +12,15 @@ type Config struct {
 }
 
 type HTTPServer struct {
-	baseURL     string        `yaml:"base_url" env-default:"localhost:8080"`
-	timeout     time.Duration `yaml:"timeout" env-default:"4s"`
-	idleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
+	Address     string        `yaml:"address" env-default:":8080"`
+	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
+	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
 }
 
 func MustLoad() *Config {
+	if err := os.Setenv("CONFIG_PATH", "internal/config/cfg.yaml"); err != nil {
+		log.Fatal("Can not set default value for CONFIG_PATH")
+	}
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
 		log.Fatal("CONFIG_PATH is not set")

@@ -9,7 +9,6 @@ import (
 
 func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	shortLink := chi.URLParam(r, "id")
-
 	mapper := storage.Mapper
 	longLink, ok := mapper.Get(shortLink)
 	if !ok {

@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -42,11 +43,14 @@ func TestGetURLHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			router := chi.NewRouter()
+			router.Get("/{id}", GetURLHandler)
 			URLMap := storage.Mapper
 			URLMap.Set("BFG9000x", "www.yandex.ru")
 			r := httptest.NewRequest(tt.method, tt.route, nil)
 			w := httptest.NewRecorder()
-			GetURLHandler(w, r)
+			//GetURLHandler(w, r)
+			router.ServeHTTP(w, r)
 			res := w.Result()
 			defer res.Body.Close()
 			_, err := io.ReadAll(res.Body)

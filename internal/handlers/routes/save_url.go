@@ -24,7 +24,6 @@ func SaveURLHandler(w http.ResponseWriter, r *http.Request) {
 	shortLink := generateRandomString(8)
 	mapper := storage.Mapper
 	mapper.Set(shortLink, string(longLink))
-	handlers.SetHeadersHandler(w)
 	responseValue := handlers.GenerateURL(r, shortLink)
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write([]byte(responseValue))

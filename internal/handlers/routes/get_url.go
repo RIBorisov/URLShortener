@@ -1,15 +1,14 @@
 package routes
 
 import (
+	"github.com/go-chi/chi/v5"
 	"net/http"
 	"shortener/internal/handlers"
 	"shortener/internal/storage"
-	"strings"
 )
 
 func GetURLHandler(w http.ResponseWriter, r *http.Request) {
-	shortLink := strings.TrimPrefix(r.URL.Path, "/")
-	handlers.SetHeadersHandler(w)
+	shortLink := chi.URLParam(r, "id")
 
 	mapper := storage.Mapper
 	longLink, ok := mapper.Get(shortLink)

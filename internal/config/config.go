@@ -39,9 +39,6 @@ func MustLoad() *Config {
 }
 
 func getDefaultPath() string {
-	// в тестах гитхаб путь формируется неправильно
-	//filePath, _ := filepath.Abs(filepath.Dir("../../internal/config/cfg.yaml"))
-	//defaultPath := filePath + "/cfg.yaml"
 	projectDir, _ := os.Getwd()
 	defaultPath := projectDir + "/internal/config/cfg.yaml"
 	return defaultPath

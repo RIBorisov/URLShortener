@@ -10,9 +10,16 @@ import (
 )
 
 func main() {
+	parseFlags()
 	cfg := config.MustLoad()
+
+	// settings server address
+	if flagRunAddr != "" {
+		cfg.HTTPServer.Address = flagRunAddr
+	}
 	router := chi.NewRouter()
 
+	// setting middlewares
 	router.Use(middleware.RequestID)
 	router.Use(middleware.SetHeader("Content-Type", "text/plain; charset=utf-8"))
 	router.Use(middleware.Logger)
@@ -23,7 +30,6 @@ func main() {
 		r.Post("/", routes.SaveURLHandler)
 	})
 
-	log.Println("Server started on port 8080")
 	srv := &http.Server{
 		Addr:         cfg.HTTPServer.Address,
 		Handler:      router,
@@ -31,7 +37,9 @@ func main() {
 		WriteTimeout: cfg.Timeout,
 		IdleTimeout:  cfg.IdleTimeout,
 	}
+	log.Printf("\nServer running on %s\n", cfg.HTTPServer.Address)
+
 	if err := srv.ListenAndServe(); err != nil {
-		panic(err)
+		log.Fatalf("Got unexpected error, details: %s", err)
 	}
 }

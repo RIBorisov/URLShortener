@@ -4,6 +4,7 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -18,25 +19,28 @@ type HTTPServer struct {
 }
 
 func MustLoad() *Config {
-	if err := os.Setenv("CONFIG_PATH", "internal/config/cfg.yaml"); err != nil {
-		log.Fatal("Can not set default value for CONFIG_PATH")
-	}
 	configPath := os.Getenv("CONFIG_PATH")
+
 	if configPath == "" {
-		log.Fatal("CONFIG_PATH is not set")
+		log.Println("env CONFIG_PATH is not set, getting a default value")
+		configPath = getDefaultPath()
 	}
 
-	// check if file exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		log.Fatalf("config file does not exist: %s", err)
 	}
 
 	var cfg Config
 
-	// read config file
 	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
 		log.Fatalf("cannot read config: %s", err)
 	}
 
 	return &cfg
+}
+
+func getDefaultPath() string {
+	filePath, _ := filepath.Abs(filepath.Dir("../../internal/config/cfg.yaml"))
+	defaultPath := filePath + "/cfg.yaml"
+	return defaultPath
 }

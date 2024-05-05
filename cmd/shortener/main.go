@@ -30,16 +30,17 @@ func main() {
 		r.Post("/", routes.SaveURLHandler)
 	})
 
-	srv := &http.Server{
-		Addr:         cfg.HTTPServer.Address,
-		Handler:      router,
-		ReadTimeout:  cfg.Timeout,
-		WriteTimeout: cfg.Timeout,
-		IdleTimeout:  cfg.IdleTimeout,
-	}
+	//srv := &http.Server{
+	//	Addr:         cfg.HTTPServer.Address,
+	//	Handler:      router,
+	//	ReadTimeout:  cfg.Timeout,
+	//	WriteTimeout: cfg.Timeout,
+	//	IdleTimeout:  cfg.IdleTimeout,
+	//}
 	log.Printf("\nServer running on %s\n", cfg.HTTPServer.Address)
 
-	if err := srv.ListenAndServe(); err != nil {
+	//if err := srv.ListenAndServe(); err != nil {
+	if err := http.ListenAndServe(cfg.HTTPServer.Address, router); err != nil {
 		log.Fatalf("Got unexpected error, details: %s", err)
 	}
 }

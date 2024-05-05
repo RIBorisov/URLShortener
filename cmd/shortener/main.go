@@ -5,33 +5,31 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"log"
 	"net/http"
-	"shortener/internal/config"
+	c "shortener/internal/config"
 	"shortener/internal/handlers/routes"
 )
 
 func main() {
-	cfg := config.MustLoad()
-	router := chi.NewRouter()
+	cfg := c.LoadConfig()
 
+	// setting routes and middlewares
+	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.SetHeader("Content-Type", "text/plain; charset=utf-8"))
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
-
 	router.Route("/", func(r chi.Router) {
 		r.Get("/{id}", routes.GetURLHandler)
 		r.Post("/", routes.SaveURLHandler)
 	})
+	// setting server config
+	//srv := &http.Server{
+	//	Addr:    c.Config.ServerAddress,
+	//	Handler: router,
+	//}
 
-	log.Println("Server started on port 8080")
-	srv := &http.Server{
-		Addr:         cfg.HTTPServer.Address,
-		Handler:      router,
-		ReadTimeout:  cfg.Timeout,
-		WriteTimeout: cfg.Timeout,
-		IdleTimeout:  cfg.IdleTimeout,
-	}
-	if err := srv.ListenAndServe(); err != nil {
-		panic(err)
+	log.Println("server running on:", cfg.Server.ServerAddress)
+	if err := http.ListenAndServe(cfg.Server.ServerAddress, router); err != nil {
+		log.Fatalf("got unexpected error, details: %s", err)
 	}
 }

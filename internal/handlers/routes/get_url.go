@@ -15,7 +15,7 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	originalURL := handlers.GenerateURL(r, shortLink)
+	originalURL := handlers.GenerateURL(shortLink)
 	handlers.RedirectToURL(w, r, longLink, originalURL)
 
 	_, err := w.Write([]byte(longLink))

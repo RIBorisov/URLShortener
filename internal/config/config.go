@@ -1,42 +1,68 @@
 package config
 
 import (
-	"github.com/ilyakaznacheev/cleanenv"
-	"log"
 	"os"
-	"time"
+	s "shortener"
 )
 
+type ServerConfig struct {
+	ServerAddress string `env:"SERVER_ADDRESS" env-default:":8080"`
+	BaseURL       string `env:"BASE_URL" env-default:"http://localhost:8080"`
+}
+
 type Config struct {
-	HTTPServer `yaml:"http_server"`
+	Server ServerConfig
 }
 
-type HTTPServer struct {
-	Address     string        `yaml:"address" env-default:":8080"`
-	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
-	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
-}
-
-func MustLoad() *Config {
-	if err := os.Setenv("CONFIG_PATH", "internal/config/cfg.yaml"); err != nil {
-		log.Fatal("Can not set default value for CONFIG_PATH")
-	}
-	configPath := os.Getenv("CONFIG_PATH")
-	if configPath == "" {
-		log.Fatal("CONFIG_PATH is not set")
-	}
-
-	// check if file exists
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Fatalf("config file does not exist: %s", err)
-	}
-
+func LoadConfig() *Config {
 	var cfg Config
 
-	// read config file
-	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		log.Fatalf("cannot read config: %s", err)
+	s.ParseFlags()
+
+	cfg.Server.BaseURL = "http://localhost:8080"
+	cfg.Server.ServerAddress = "localhost:8080"
+
+	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" {
+		cfg.Server.BaseURL = envBaseURL
+	} else if s.FlagRunBaseAddr != "" {
+		cfg.Server.BaseURL = s.FlagRunBaseAddr
+	}
+
+	if envAddr := os.Getenv("SERVER_ADDRESS"); envAddr != "" {
+		cfg.Server.ServerAddress = envAddr
+	} else if s.FlagRunAddr != ":8080" {
+		cfg.Server.ServerAddress = s.FlagRunAddr
 	}
 
 	return &cfg
 }
+
+//package config
+//
+//import (
+//	"os"
+//	s "shortener"
+//)
+//
+//var Config struct {
+//	ServerAddress string `env:"SERVER_ADDRESS" env-default:":8080"`
+//	BaseURL       string `env:"BASE_URL" env-default:"http://localhost:8080"`
+//}
+//
+//func LoadConfig() {
+//	s.ParseFlags()
+//	Config.BaseURL = "http://localhost:8080"
+//	Config.ServerAddress = "localhost:8080"
+//
+//	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" {
+//		Config.BaseURL = envBaseURL
+//	} else if s.FlagRunBaseAddr != "" {
+//		Config.BaseURL = s.FlagRunBaseAddr
+//	}
+//
+//	if envAddr := os.Getenv("SERVER_ADDRESS"); envAddr != "" {
+//		Config.ServerAddress = envAddr
+//	} else if s.FlagRunAddr != ":8080" {
+//		Config.ServerAddress = s.FlagRunAddr
+//	}
+//}

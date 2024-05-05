@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"fmt"
-	"net/http"
+	c "shortener/internal/config"
 )
 
-func GenerateURL(r *http.Request, shortLink string) string {
-	resultString := fmt.Sprintf("http://%s/%s", r.Host, shortLink)
+func GenerateURL(shortLink string) string {
+	cfg := c.LoadConfig()
+	resultString := fmt.Sprintf("%s/%s", cfg.Server.BaseURL, shortLink)
 	return resultString
 }

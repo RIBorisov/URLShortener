@@ -24,11 +24,10 @@ func SaveURLHandler(w http.ResponseWriter, r *http.Request) {
 	shortLink := generateRandomString(8)
 	mapper := storage.Mapper
 	mapper.Set(shortLink, string(longLink))
-	responseValue := handlers.GenerateURL(r, shortLink)
+	responseValue := handlers.GenerateURL(shortLink)
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write([]byte(responseValue))
 	if err != nil {
-		// добавить логов
 		return
 	}
 }

@@ -22,14 +22,15 @@ func main() {
 		r.Get("/{id}", routes.GetURLHandler)
 		r.Post("/", routes.SaveURLHandler)
 	})
-	// setting server config
-	//srv := &http.Server{
-	//	Addr:    c.Config.ServerAddress,
-	//	Handler: router,
-	//}
+
+	//setting server config
+	srv := &http.Server{
+		Addr:    cfg.Server.ServerAddress,
+		Handler: router,
+	}
 
 	log.Println("server running on:", cfg.Server.ServerAddress)
-	if err := http.ListenAndServe(cfg.Server.ServerAddress, router); err != nil {
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("got unexpected error, details: %s", err)
 	}
 }

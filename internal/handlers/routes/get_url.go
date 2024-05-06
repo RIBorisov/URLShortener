@@ -1,8 +1,10 @@
 package routes
 
 import (
-	"github.com/go-chi/chi/v5"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
 	"shortener/internal/handlers"
 	"shortener/internal/storage"
 )

@@ -9,6 +9,7 @@ import (
 )
 
 func SaveURLHandler(w http.ResponseWriter, r *http.Request) {
+	shortLinkLength := 8
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
@@ -21,7 +22,7 @@ func SaveURLHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Error when reading body value", http.StatusBadRequest)
 	}
-	shortLink := generateRandomString(8)
+	shortLink := generateRandomString(shortLinkLength)
 	mapper := storage.Mapper
 	mapper.Set(shortLink, string(longLink))
 	responseValue := handlers.GenerateURL(shortLink)

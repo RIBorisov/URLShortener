@@ -2,20 +2,20 @@ package routes
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSaveURLHandler(t *testing.T) {
 	type want struct {
 		contentType string
 		statusCode  int
-		body        string
 	}
 	tests := []struct {
 		name   string

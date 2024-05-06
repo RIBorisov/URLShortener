@@ -1,14 +1,16 @@
 package routes
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"shortener/internal/storage"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"shortener/internal/storage"
 )
 
 func TestGetURLHandler(t *testing.T) {
@@ -51,8 +53,15 @@ func TestGetURLHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, r)
 			res := w.Result()
-			defer res.Body.Close()
 			_, err := io.ReadAll(res.Body)
+			if err != nil {
+				return
+			}
+			err = res.Body.Close()
+			if err != nil {
+				return
+			}
+
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.statusCode, res.StatusCode)
 		})

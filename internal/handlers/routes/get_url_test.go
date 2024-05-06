@@ -57,7 +57,7 @@ func TestGetURLHandler(t *testing.T) {
 			if err != nil {
 				return
 			}
-			err = res.Body.Close()
+			err = res.Body.Close() // так требует golangci, defer с безымянной функцией не хочет
 			if err != nil {
 				return
 			}

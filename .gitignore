@@ -22,4 +22,3 @@ vendor/
 .idea
 .vscode
 golangci-lint/
-client.go

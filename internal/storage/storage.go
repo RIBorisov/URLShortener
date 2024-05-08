@@ -1,10 +1,15 @@
 package storage
 
+type URLMapper interface {
+	Get(shortLink string) (string, bool)
+	Set(shortLink, longLink string)
+}
+
 type SimpleURLMapper struct {
 	URLs map[string]string
 }
 
-func NewSimpleURLMapper() *SimpleURLMapper {
+func newSimpleURLMapper() *SimpleURLMapper {
 	return &SimpleURLMapper{URLs: make(map[string]string)}
 }
 
@@ -17,8 +22,4 @@ func (m *SimpleURLMapper) Set(shortLink, longLink string) {
 	m.URLs[shortLink] = longLink
 }
 
-func (m *SimpleURLMapper) Count() int {
-	return len(m.URLs)
-}
-
-var Mapper = NewSimpleURLMapper()
+var Mapper = newSimpleURLMapper()

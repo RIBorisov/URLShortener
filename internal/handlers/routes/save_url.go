@@ -2,42 +2,30 @@ package routes
 
 import (
 	"io"
-	"math/rand"
+	"log"
 	"net/http"
+
 	"shortener/internal/handlers"
 	"shortener/internal/storage"
 )
 
 func SaveURLHandler(w http.ResponseWriter, r *http.Request) {
-	shortLinkLength := 8
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			// добавить логов
-			return
-		}
-	}(r.Body)
-
 	longLink, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Error when reading body value", http.StatusBadRequest)
+		http.Error(w, "Error when reading body value", http.StatusInternalServerError)
+		return
 	}
-	shortLink := generateRandomString(shortLinkLength)
+
 	mapper := storage.Mapper
+	shortLink := handlers.GenerateUniqueShortLink()
 	mapper.Set(shortLink, string(longLink))
-	responseValue := handlers.GenerateURL(shortLink)
+
+	responseValue := handlers.GetOriginalURL(shortLink)
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write([]byte(responseValue))
 	if err != nil {
+		log.Printf("Error when saving URL: %s", err)
+		http.Error(w, "Error when saving URL", http.StatusInternalServerError)
 		return
 	}
-}
-
-func generateRandomString(length int) string {
-	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	randomString := make([]byte, length)
-	for i := range randomString {
-		randomString[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(randomString)
 }

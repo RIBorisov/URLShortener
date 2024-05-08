@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	s "shortener"
 )
 
 type ServerConfig struct {
@@ -10,29 +9,33 @@ type ServerConfig struct {
 	BaseURL       string `env:"BASE_URL" env-default:"http://localhost:8080"`
 }
 
+type URLDetail struct {
+	Length int `env:"URL_LENGTH" env-default:"8"`
+}
+
 type Config struct {
 	Server ServerConfig
+	URL    URLDetail
 }
 
 func LoadConfig() *Config {
 	var cfg Config
 
-	s.ParseFlags()
+	parseFlags()
+	cfg.URL.Length = 8
 
-	cfg.Server.BaseURL = "http://localhost:8080"
-	cfg.Server.ServerAddress = "localhost:8080"
-
-	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" {
+	envBaseURL, ok := os.LookupEnv("BASE_URL")
+	if ok {
 		cfg.Server.BaseURL = envBaseURL
-	} else if s.FlagRunBaseAddr != "" {
-		cfg.Server.BaseURL = s.FlagRunBaseAddr
+	} else {
+		cfg.Server.BaseURL = flagRunBaseAddr
 	}
 
-	if envAddr := os.Getenv("SERVER_ADDRESS"); envAddr != "" {
+	envAddr, ok := os.LookupEnv("SERVER_ADDRESS")
+	if ok {
 		cfg.Server.ServerAddress = envAddr
-	} else if s.FlagRunAddr != ":8080" {
-		cfg.Server.ServerAddress = s.FlagRunAddr
+	} else {
+		cfg.Server.ServerAddress = flagRunAddr
 	}
-
 	return &cfg
 }

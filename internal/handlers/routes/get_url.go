@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -17,11 +18,14 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	originalURL := handlers.GenerateURL(shortLink)
+	originalURL := handlers.GetOriginalURL(shortLink)
+
 	handlers.RedirectToURL(w, r, longLink, originalURL)
 
 	_, err := w.Write([]byte(longLink))
 	if err != nil {
+		log.Printf("Error when getting ShortURL: %s", err)
+		http.Error(w, "Error when saving URL", http.StatusInternalServerError)
 		return
 	}
 }

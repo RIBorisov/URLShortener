@@ -18,7 +18,7 @@ func GetOriginalURL(shortLink string) string {
 }
 
 func GenerateUniqueShortLink() string {
-	uniqString := ""
+	var uniqString string
 	cfg := config.LoadConfig()
 	mapper := storage.Mapper
 	// check if the string is unique

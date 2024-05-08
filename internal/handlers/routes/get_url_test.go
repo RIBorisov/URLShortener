@@ -49,7 +49,7 @@ func TestGetURLHandler(t *testing.T) {
 			router.Get("/{id}", GetURLHandler)
 			URLMap := storage.Mapper
 			URLMap.Set("BFG9000x", "www.yandex.ru")
-			r := httptest.NewRequest(tt.method, tt.route, nil)
+			r := httptest.NewRequest(tt.method, tt.route, http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, r)
 			res := w.Result()

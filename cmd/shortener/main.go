@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"shortener/internal/storage"
 
 	"shortener/internal/config"
 	"shortener/internal/router"
@@ -12,7 +13,8 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// setting routes and middlewares
-	r := router.Init()
+	db := storage.GetStorage()
+	r := router.Init(db)
 
 	// setting server config
 	srv := &http.Server{

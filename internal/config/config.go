@@ -21,21 +21,21 @@ type Config struct {
 func LoadConfig() *Config {
 	var cfg Config
 
-	parseFlags()
+	f := parseFlags()
 	cfg.URL.Length = 8
 
 	envBaseURL, ok := os.LookupEnv("BASE_URL")
 	if ok {
 		cfg.Server.BaseURL = envBaseURL
 	} else {
-		cfg.Server.BaseURL = flagRunBaseAddr
+		cfg.Server.BaseURL = f.RunBaseAddr
 	}
 
 	envAddr, ok := os.LookupEnv("SERVER_ADDRESS")
 	if ok {
 		cfg.Server.ServerAddress = envAddr
 	} else {
-		cfg.Server.ServerAddress = flagRunAddr
+		cfg.Server.ServerAddress = f.RunAddr
 	}
 	return &cfg
 }

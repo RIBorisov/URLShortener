@@ -5,26 +5,32 @@ import (
 	"math/rand"
 	"net/url"
 	"shortener/internal/config"
-	"shortener/internal/storage"
 )
+
+type urlStorage interface {
+	Get(shortLink string) (string, bool)
+	Save(shortLink, longLink string)
+}
 
 func GetOriginalURL(shortLink string) string {
 	cfg := config.LoadConfig()
 	generated, err := url.JoinPath(cfg.Server.BaseURL, shortLink)
 	if err != nil {
 		log.Printf("Error when generating URL %s: ", err)
+		return "" // TODO: обсудить на 1:1 (можно лучше)
 	}
 	return generated
 }
 
-func GenerateUniqueShortLink() string {
+// GenerateUniqueShortLink TODO: обсудить на 1:1 (можно лучше, не нравится передавать сюда db)
+func GenerateUniqueShortLink(db urlStorage) string {
+	const length = 8
 	var uniqString string
-	cfg := config.LoadConfig()
-	mapper := storage.Mapper
+
 	// check if the string is unique
 	for {
-		uniqStringCandidate := generateRandomString(cfg.URL.Length)
-		_, ok := mapper.Get(uniqStringCandidate)
+		uniqStringCandidate := generateRandomString(length)
+		_, ok := db.Get(uniqStringCandidate)
 		if !ok {
 			uniqString = uniqStringCandidate
 			break

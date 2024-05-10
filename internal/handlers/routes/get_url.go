@@ -1,31 +1,37 @@
 package routes
 
 import (
+	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
-
-	"github.com/go-chi/chi/v5"
-
 	"shortener/internal/handlers"
-	"shortener/internal/storage"
 )
 
-func GetURLHandler(w http.ResponseWriter, r *http.Request) {
-	shortLink := chi.URLParam(r, "id")
-	mapper := storage.Mapper
-	longLink, ok := mapper.Get(shortLink)
-	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
-	}
+type urlGetter interface {
+	Get(shortLink string) (string, bool)
+}
 
-	originalURL := handlers.GetOriginalURL(shortLink)
-
-	handlers.RedirectToURL(w, r, longLink, originalURL)
-
-	_, err := w.Write([]byte(longLink))
-	if err != nil {
-		log.Printf("Error when getting ShortURL: %s", err)
-		http.Error(w, "Error when saving URL", http.StatusInternalServerError)
-		return
+func GetHandler(db urlGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		const (
+			op     = "handlers.routes.getUrl.GetHandler"
+			errMsg = "Internal server error"
+		)
+		short := chi.URLParam(r, "id")
+		long, ok := db.Get(short)
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		origin := handlers.GetOriginalURL(short)
+		if origin == "" {
+			http.Error(w, errMsg, http.StatusInternalServerError)
+			return
+		}
+		handlers.RedirectToURL(w, r, long, origin)
+		_, err := w.Write([]byte(long))
+		if err != nil {
+			log.Printf("%s: %+v", op, err)
+			http.Error(w, errMsg, http.StatusInternalServerError)
+		}
 	}
 }

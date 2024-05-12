@@ -1,23 +1,18 @@
 package storage
 
-type Storage interface {
-	Get(shortLink string) (string, bool)
-	Save(shortLink, longLink string)
-}
-
-type SimpleStorage struct {
+type Storage struct {
 	URLs map[string]string
 }
 
-func (m *SimpleStorage) Get(shortLink string) (string, bool) {
+func (m *Storage) Get(shortLink string) (string, bool) {
 	longLink, ok := m.URLs[shortLink]
 	return longLink, ok
 }
 
-func (m *SimpleStorage) Save(shortLink, longLink string) {
+func (m *Storage) Save(shortLink, longLink string) {
 	m.URLs[shortLink] = longLink
 }
 
-func GetStorage() *SimpleStorage {
-	return &SimpleStorage{URLs: make(map[string]string)}
+func LoadStorage() *Storage {
+	return &Storage{URLs: make(map[string]string)}
 }

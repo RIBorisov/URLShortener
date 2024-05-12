@@ -1,10 +1,11 @@
-package routes
+package handlers
 
 import (
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"shortener/internal/config"
 	"strings"
 	"testing"
 
@@ -15,7 +16,8 @@ import (
 )
 
 func TestSaveHandler(t *testing.T) {
-	db := storage.GetStorage()
+	cfg := config.LoadConfig()
+	db := storage.LoadStorage()
 	type want struct {
 		statusCode int
 	}
@@ -48,7 +50,7 @@ func TestSaveHandler(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := SaveHandler(db)
+			handler := SaveHandler(db, cfg)
 			reqBody := strings.NewReader(tt.body)
 			r := httptest.NewRequest(tt.method, tt.route, reqBody)
 			w := httptest.NewRecorder()

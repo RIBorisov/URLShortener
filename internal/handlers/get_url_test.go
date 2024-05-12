@@ -1,9 +1,10 @@
-package routes
+package handlers
 
 import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"shortener/internal/config"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -14,7 +15,8 @@ import (
 )
 
 func TestGetHandler(t *testing.T) {
-	db := storage.GetStorage()
+	cfg := config.LoadConfig()
+	db := storage.LoadStorage()
 	db.Save("BFG9000x", "https://example.org")
 	db.Save("Xo0lK6n5", "https://dzen.ru")
 	type want struct {
@@ -59,7 +61,7 @@ func TestGetHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				router := chi.NewRouter()
-				router.Get("/{id}", GetHandler(db))
+				router.Get("/{id}", GetHandler(db, cfg))
 				r := httptest.NewRequest(tt.method, tt.route, http.NoBody)
 				w := httptest.NewRecorder()
 				router.ServeHTTP(w, r)

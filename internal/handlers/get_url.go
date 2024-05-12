@@ -12,7 +12,10 @@ import (
 
 func GetHandler(db urlStorage, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.routes.getUrl.GetHandler"
+		const (
+			op        = "handlers.routes.getUrl.GetHandler"
+			logFormat = "%s: %+v"
+		)
 
 		short := chi.URLParam(r, "id")
 		long, ok := db.Get(short)
@@ -20,8 +23,8 @@ func GetHandler(db urlStorage, cfg *config.Config) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 		}
 		origin, err := url.JoinPath(cfg.Server.BaseURL, short)
-
-		if origin == "" {
+		if err != nil {
+			log.Printf(logFormat, op, err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
@@ -29,7 +32,7 @@ func GetHandler(db urlStorage, cfg *config.Config) http.HandlerFunc {
 		w.Header().Set("Location", origin)
 		_, err = w.Write([]byte(long))
 		if err != nil {
-			log.Printf("%s: %+v", op, err)
+			log.Printf(logFormat, op, err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}

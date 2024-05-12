@@ -17,10 +17,13 @@ type urlStorage interface {
 
 func SaveHandler(db urlStorage, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.routes.saveUrl.SaveHandler"
+		const (
+			op        = "handlers.routes.saveUrl.SaveHandler"
+			logFormat = "%s: %+v"
+		)
 		long, err := io.ReadAll(r.Body)
 		if err != nil {
-			log.Printf("%s: %+v", op, err)
+			log.Printf(logFormat, op, err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
@@ -30,14 +33,14 @@ func SaveHandler(db urlStorage, cfg *config.Config) http.HandlerFunc {
 
 		resultURL, err := url.JoinPath(cfg.Server.BaseURL, short)
 		if err != nil {
-			log.Printf("%s: %+v", op, err)
+			log.Printf(logFormat, op, err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
 		_, err = w.Write([]byte(resultURL))
 		if err != nil {
-			log.Printf("%s: %+v", op, err)
+			log.Printf(logFormat, op, err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}

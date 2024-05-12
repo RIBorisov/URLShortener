@@ -1,21 +1,23 @@
 package routes
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
-	"shortener/internal/storage"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"shortener/internal/storage"
 )
 
 func TestSaveHandler(t *testing.T) {
 	db := storage.GetStorage()
 	type want struct {
-		statusCode  int
-		contentType string
+		statusCode int
 	}
 	cases := []struct {
 		name   string
@@ -44,17 +46,21 @@ func TestSaveHandler(t *testing.T) {
 		},
 	}
 
-	handler := SaveHandler(db)
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			handler := SaveHandler(db)
 			reqBody := strings.NewReader(tt.body)
 			r := httptest.NewRequest(tt.method, tt.route, reqBody)
 			w := httptest.NewRecorder()
 			handler.ServeHTTP(w, r)
-
 			res := w.Result()
 			resBody, err := io.ReadAll(res.Body)
-			defer res.Body.Close()
+			if err != nil {
+				log.Printf("error when reading response body")
+			}
+			if err = res.Body.Close(); err != nil {
+				log.Printf("error when closing response body")
+			}
 			require.NoError(t, err)
 			assert.NotEmpty(t, resBody)
 			assert.Equal(t, res.StatusCode, tt.want.statusCode)

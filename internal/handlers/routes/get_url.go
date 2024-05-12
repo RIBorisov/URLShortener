@@ -1,9 +1,11 @@
 package routes
 
 import (
-	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
 	"shortener/internal/handlers"
 )
 
@@ -32,6 +34,7 @@ func GetHandler(db urlGetter) http.HandlerFunc {
 		if err != nil {
 			log.Printf("%s: %+v", op, err)
 			http.Error(w, errMsg, http.StatusInternalServerError)
+			return
 		}
 	}
 }

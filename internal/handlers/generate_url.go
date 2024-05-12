@@ -22,7 +22,7 @@ func GetOriginalURL(shortLink string) string {
 	return generated
 }
 
-// GenerateUniqueShortLink TODO: обсудить на 1:1 (можно лучше, не нравится передавать сюда db)
+// GenerateUniqueShortLink TODO: обсудить на 1:1 (можно лучше, не нравится передавать сюда db).
 func GenerateUniqueShortLink(db urlStorage) string {
 	const length = 8
 	var uniqString string

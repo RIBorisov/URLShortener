@@ -3,9 +3,9 @@ package router
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"shortener/internal/storage"
 
 	"shortener/internal/handlers/routes"
+	"shortener/internal/storage"
 )
 
 func Init(db *storage.SimpleStorage) *chi.Mux {

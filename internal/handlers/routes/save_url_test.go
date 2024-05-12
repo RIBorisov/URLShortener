@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestSaveHandler_Success(t *testing.T) {
+func TestSaveHandler(t *testing.T) {
 	db := storage.GetStorage()
 	type want struct {
 		statusCode  int
@@ -48,9 +48,9 @@ func TestSaveHandler_Success(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			reqBody := strings.NewReader(tt.body)
-			req := httptest.NewRequest(tt.method, tt.route, reqBody)
+			r := httptest.NewRequest(tt.method, tt.route, reqBody)
 			w := httptest.NewRecorder()
-			handler.ServeHTTP(w, req)
+			handler.ServeHTTP(w, r)
 
 			res := w.Result()
 			resBody, err := io.ReadAll(res.Body)

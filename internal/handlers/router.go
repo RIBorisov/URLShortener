@@ -10,9 +10,9 @@ import (
 
 func NewRouter(db *storage.Storage, cfg *config.Config) *chi.Mux {
 	router := chi.NewRouter()
-	router.Use(middleware.SetHeader("Content-Type", "text/plain; charset=utf-8"))
-	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
+	router.Use(middleware.Logger)
+	router.Use(middleware.SetHeader("Content-Type", "text/plain; charset=utf-8"))
 
 	router.Route("/", func(r chi.Router) {
 		r.Get("/{id}", GetHandler(db, cfg))

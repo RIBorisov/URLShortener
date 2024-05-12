@@ -1,10 +1,12 @@
 package handlers
 
 import (
-	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/go-chi/chi/v5"
+
 	"shortener/internal/config"
 )
 

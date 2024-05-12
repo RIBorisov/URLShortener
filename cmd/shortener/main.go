@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 	"net/http"
-	"shortener/internal/handlers"
-	"shortener/internal/storage"
 
 	"shortener/internal/config"
+	"shortener/internal/handlers"
+	"shortener/internal/storage"
 )
 
 func main() {

@@ -5,13 +5,13 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"shortener/internal/config"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"shortener/internal/config"
 	"shortener/internal/storage"
 )
 

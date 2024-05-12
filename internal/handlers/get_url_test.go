@@ -4,13 +4,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"shortener/internal/config"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"shortener/internal/config"
 	"shortener/internal/storage"
 )
 

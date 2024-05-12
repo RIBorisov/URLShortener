@@ -13,7 +13,7 @@ type urlStorage interface {
 }
 
 func GetOriginalURL(shortLink string) string {
-	cfg := config.LoadConfig()
+	cfg := config.LoadConfig() // TODO: обсудить 1:1 возможно лучше один раз инициализировать и передавать в роутер?
 	generated, err := url.JoinPath(cfg.Server.BaseURL, shortLink)
 	if err != nil {
 		log.Printf("Error when generating URL %s: ", err)

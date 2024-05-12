@@ -9,7 +9,7 @@ type Flags struct {
 	RunBaseAddr string
 }
 
-var f Flags
+var f Flags // TODO: обсудить на 1:1 реализацию.
 
 func parseFlags() *Flags {
 	if !flag.Parsed() {

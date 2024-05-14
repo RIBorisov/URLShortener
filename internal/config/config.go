@@ -28,14 +28,14 @@ func LoadConfig() *Config {
 	if ok {
 		cfg.Server.BaseURL = envBaseURL
 	} else {
-		cfg.Server.BaseURL = f.RunBaseAddr
+		cfg.Server.BaseURL = f.BaseURL
 	}
 
 	envAddr, ok := os.LookupEnv("SERVER_ADDRESS")
 	if ok {
 		cfg.Server.ServerAddress = envAddr
 	} else {
-		cfg.Server.ServerAddress = f.RunAddr
+		cfg.Server.ServerAddress = f.ServerAddress
 	}
 	return &cfg
 }

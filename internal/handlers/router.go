@@ -5,18 +5,18 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"shortener/internal/config"
-	"shortener/internal/storage"
+	"shortener/internal/service"
 )
 
-func NewRouter(db *storage.Storage, cfg *config.Config) *chi.Mux {
+func NewRouter(svc *service.Service, cfg *config.Config) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Logger)
 	router.Use(middleware.SetHeader("Content-Type", "text/plain; charset=utf-8"))
 
 	router.Route("/", func(r chi.Router) {
-		r.Get("/{id}", GetHandler(db, cfg))
-		r.Post("/", SaveHandler(db, cfg))
+		r.Get("/{id}", GetHandler(svc))
+		r.Post("/", SaveHandler(svc, cfg))
 	})
 
 	return router

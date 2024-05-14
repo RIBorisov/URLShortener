@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"math/rand"
 )
 
@@ -37,4 +38,16 @@ func generateRandomString(length int) string {
 		randomString[i] = charset[rand.Intn(len(charset))]
 	}
 	return string(randomString)
+}
+
+func (s *Service) SaveURL(short, long string) {
+	s.DB.Save(short, long)
+}
+
+func (s *Service) GetURL(short string) (string, error) {
+	long, ok := s.DB.Get(short)
+	if !ok {
+		return "", fmt.Errorf("not found long URL by passed short URL: %s", short)
+	}
+	return long, nil
 }

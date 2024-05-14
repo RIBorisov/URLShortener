@@ -10,37 +10,27 @@ import (
 	"shortener/internal/service"
 )
 
-type urlStorage interface {
-	Get(shortLink string) (string, bool)
-	Save(shortLink, longLink string)
-}
-
-func SaveHandler(db urlStorage, cfg *config.Config) http.HandlerFunc {
+func SaveHandler(svc *service.Service, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const (
-			op        = "handlers.routes.saveUrl.SaveHandler"
-			logFormat = "%s: %+v"
-		)
 		long, err := io.ReadAll(r.Body)
 		if err != nil {
-			log.Printf(logFormat, op, err)
+			log.Printf("failed to read body: %v", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		s := service.Service{DB: db, BaseURL: cfg.Server.BaseURL}
-		short := s.GenerateUniqueShortLink(cfg.URL.Length)
-		db.Save(short, string(long))
+		short := svc.GenerateUniqueShortLink(cfg.URL.Length)
+		svc.SaveURL(short, string(long))
 
 		resultURL, err := url.JoinPath(cfg.Server.BaseURL, short)
 		if err != nil {
-			log.Printf(logFormat, op, err)
+			log.Printf("failed to join path to get result URL: %v", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
 		_, err = w.Write([]byte(resultURL))
 		if err != nil {
-			log.Printf(logFormat, op, err)
+			log.Printf("failed to write the full URL response to client: %v", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}

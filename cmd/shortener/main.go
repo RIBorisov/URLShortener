@@ -6,17 +6,16 @@ import (
 
 	"shortener/internal/config"
 	"shortener/internal/handlers"
+	"shortener/internal/service"
 	"shortener/internal/storage"
 )
 
 func main() {
 	cfg := config.LoadConfig()
-
-	// setting routes and middlewares
 	db := storage.LoadStorage()
-	r := handlers.NewRouter(db, cfg)
+	svc := &service.Service{DB: db, BaseURL: cfg.Server.BaseURL}
+	r := handlers.NewRouter(svc, cfg)
 
-	// setting server config
 	srv := &http.Server{
 		Addr:    cfg.Server.ServerAddress,
 		Handler: r,

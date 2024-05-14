@@ -8,17 +8,36 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"shortener/internal/config"
-	"shortener/internal/storage"
+	"shortener/internal/service"
 )
 
+type MockURLStorage struct {
+	mock.Mock
+}
+
+func (m *MockURLStorage) Get(shortLink string) (string, bool) {
+	args := m.Called(shortLink)
+	return args.String(0), args.Bool(1)
+}
+
+func (m *MockURLStorage) Save(shortLink, longLink string) {
+	m.Called(shortLink, longLink)
+}
 func TestGetHandler(t *testing.T) {
 	cfg := config.LoadConfig()
-	db := storage.LoadStorage()
-	db.Save("BFG9000x", "https://example.org")
-	db.Save("Xo0lK6n5", "https://dzen.ru")
+	mockDB := &MockURLStorage{}
+	mockDB.On("Save", "BFG9000x", "https://example.org").Return()
+	mockDB.On("Get", "BFG9000x").Return("https://example.org", true)
+	mockDB.On("Save", "Xo0lK6n5", "https://dzen.ru").Return()
+	mockDB.On("Get", "Xo0lK6n5").Return("https://dzen.ru", true)
+	mockDB.On("Get", "MissingRoute").Return("", false)
+
+	svc := &service.Service{DB: mockDB, BaseURL: cfg.Server.BaseURL}
+
 	type want struct {
 		contentType string
 		statusCode  int
@@ -59,27 +78,25 @@ func TestGetHandler(t *testing.T) {
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Run(tt.name, func(t *testing.T) {
-				router := chi.NewRouter()
-				router.Get("/{id}", GetHandler(db, cfg))
-				r := httptest.NewRequest(tt.method, tt.route, http.NoBody)
-				w := httptest.NewRecorder()
-				router.ServeHTTP(w, r)
+			router := chi.NewRouter()
+			router.Get("/{id}", GetHandler(svc))
+			r := httptest.NewRequest(tt.method, tt.route, http.NoBody)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, r)
 
-				res := w.Result()
-				_, err := io.ReadAll(res.Body)
-				if err != nil {
-					return
-				}
-				err = res.Body.Close() // так требует golangci, defer с безымянной функцией не хочет
-				if err != nil {
-					return
-				}
+			res := w.Result()
+			_, err := io.ReadAll(res.Body)
+			if err != nil {
+				return
+			}
+			err = res.Body.Close() // так требует golangci, defer с безымянной функцией не хочет
+			if err != nil {
+				return
+			}
 
-				require.NoError(t, err)
-				assert.NotEmpty(t, res.Body)
-				assert.Equal(t, tt.want.statusCode, res.StatusCode)
-			})
+			require.NoError(t, err)
+			assert.NotEmpty(t, res.Body)
+			assert.Equal(t, tt.want.statusCode, res.StatusCode)
 		})
 	}
 }

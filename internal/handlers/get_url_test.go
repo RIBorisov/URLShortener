@@ -31,7 +31,6 @@ func (m *MockDB) Save(shortLink, longLink string) {
 func TestGetHandler(t *testing.T) {
 	cfg := config.LoadConfig()
 
-	//mockedSvc := &MockService{}
 	mockedDB := &MockDB{}
 	svc := &service.Service{DB: mockedDB, BaseURL: cfg.Server.BaseURL}
 

@@ -1,19 +1,19 @@
 package handlers
 
 import (
-	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"shortener/internal/service"
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"shortener/internal/config"
+	"shortener/internal/service"
 	"shortener/internal/storage"
 )
 

@@ -15,72 +15,80 @@ import (
 	"shortener/internal/service"
 )
 
-type MockURLStorage struct {
+type MockDB struct {
 	mock.Mock
 }
 
-func (m *MockURLStorage) Get(shortLink string) (string, bool) {
+func (m *MockDB) Get(shortLink string) (string, bool) {
 	args := m.Called(shortLink)
 	return args.String(0), args.Bool(1)
 }
 
-func (m *MockURLStorage) Save(shortLink, longLink string) {
+func (m *MockDB) Save(shortLink, longLink string) {
 	m.Called(shortLink, longLink)
 }
+
 func TestGetHandler(t *testing.T) {
 	cfg := config.LoadConfig()
-	mockDB := &MockURLStorage{}
-	mockDB.On("Save", "BFG9000x", "https://example.org").Return()
-	mockDB.On("Get", "BFG9000x").Return("https://example.org", true)
-	mockDB.On("Save", "Xo0lK6n5", "https://dzen.ru").Return()
-	mockDB.On("Get", "Xo0lK6n5").Return("https://dzen.ru", true)
-	mockDB.On("Get", "MissingRoute").Return("", false)
 
-	svc := &service.Service{DB: mockDB, BaseURL: cfg.Server.BaseURL}
+	//mockedSvc := &MockService{}
+	mockedDB := &MockDB{}
+	svc := &service.Service{DB: mockedDB, BaseURL: cfg.Server.BaseURL}
 
 	type want struct {
 		contentType string
 		statusCode  int
+		success     bool
 	}
 	cases := []struct {
-		name   string
-		route  string
-		method string
-		want   want
+		name    string
+		route   string
+		longURL string
+		method  string
+		want    want
 	}{
 		{
-			name:   "Positive GET #1",
-			route:  "/BFG9000x",
-			method: http.MethodGet,
+			name:    "Positive GET #1",
+			route:   "BFG9000x",
+			longURL: "https://example.org",
+			method:  http.MethodGet,
 			want: want{
 				contentType: `"text/plain; charset=utf-8"`,
 				statusCode:  http.StatusTemporaryRedirect,
+				success:     true,
 			},
 		},
 		{
-			name:   "Positive GET #2",
-			route:  "/Xo0lK6n5",
-			method: http.MethodGet,
+			name:    "Positive GET #2",
+			route:   "Xo0lK6n5",
+			longURL: "https://dzen.ru",
+			method:  http.MethodGet,
 			want: want{
 				contentType: `"text/plain; charset=utf-8"`,
 				statusCode:  http.StatusTemporaryRedirect,
+				success:     true,
 			},
 		},
 		{
-			name:   "Negative GET #1",
-			route:  "/MissingRoute",
-			method: http.MethodGet,
+			name:    "Negative GET #1",
+			route:   "MissingRoute",
+			longURL: "",
+			method:  http.MethodGet,
 			want: want{
 				contentType: `"text/plain; charset=utf-8"`,
 				statusCode:  http.StatusBadRequest,
+				success:     false,
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			mockedDB.On("Save", tt.route, tt.longURL).Return()
+			mockedDB.On("Get", tt.route).Return(tt.longURL, tt.want.success)
+
 			router := chi.NewRouter()
 			router.Get("/{id}", GetHandler(svc))
-			r := httptest.NewRequest(tt.method, tt.route, http.NoBody)
+			r := httptest.NewRequest(tt.method, "/"+tt.route, http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, r)
 

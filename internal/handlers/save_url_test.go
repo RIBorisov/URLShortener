@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"shortener/internal/service"
 	"strings"
 	"testing"
 
@@ -18,6 +20,7 @@ import (
 func TestSaveHandler(t *testing.T) {
 	cfg := config.LoadConfig()
 	db := storage.LoadStorage()
+	svc := &service.Service{DB: db, BaseURL: cfg.Server.BaseURL}
 	type want struct {
 		statusCode int
 	}
@@ -50,11 +53,13 @@ func TestSaveHandler(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := SaveHandler(db, cfg)
+			router := chi.NewRouter()
+			router.Post("/", SaveHandler(svc))
+
 			reqBody := strings.NewReader(tt.body)
 			r := httptest.NewRequest(tt.method, tt.route, reqBody)
 			w := httptest.NewRecorder()
-			handler.ServeHTTP(w, r)
+			router.ServeHTTP(w, r)
 			res := w.Result()
 			resBody, err := io.ReadAll(res.Body)
 			if err != nil {

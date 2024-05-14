@@ -14,7 +14,7 @@ func main() {
 	cfg := config.LoadConfig()
 	db := storage.LoadStorage()
 	svc := &service.Service{DB: db, BaseURL: cfg.Server.BaseURL}
-	r := handlers.NewRouter(svc, cfg)
+	r := handlers.NewRouter(svc)
 
 	srv := &http.Server{
 		Addr:    cfg.Server.ServerAddress,

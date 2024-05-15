@@ -11,15 +11,14 @@ import (
 
 func SaveHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const length = 8
+
 		long, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("failed to read body: %v", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		short := svc.GenerateUniqueShortLink(length)
-		svc.SaveURL(short, string(long))
+		short := svc.SaveURL(string(long))
 
 		resultURL, err := url.JoinPath(svc.BaseURL, short)
 		if err != nil {

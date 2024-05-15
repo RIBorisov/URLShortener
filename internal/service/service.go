@@ -15,8 +15,10 @@ type Service struct {
 	BaseURL string
 }
 
-func (s *Service) SaveURL(short, long string) {
+func (s *Service) SaveURL(long string) string {
+	short := s.GenerateUniqueShortLink()
 	s.DB.Save(short, long)
+	return short
 }
 
 func (s *Service) GetURL(short string) (string, error) {
@@ -27,7 +29,8 @@ func (s *Service) GetURL(short string) (string, error) {
 	return long, nil
 }
 
-func (s *Service) GenerateUniqueShortLink(length int) string {
+func (s *Service) GenerateUniqueShortLink() string {
+	const length = 8
 	var uniqString string
 
 	// check if the string is unique

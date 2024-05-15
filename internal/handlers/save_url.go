@@ -11,7 +11,6 @@ import (
 
 func SaveHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		long, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("failed to read body: %v", err)

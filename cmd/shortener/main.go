@@ -26,7 +26,6 @@ func main() {
 
 	log.Info("server starting ", slog.String("host", cfg.Server.ServerAddress))
 	if err := srv.ListenAndServe(); err != nil {
-		//log.Fatalf("got unexpected error, details: %s", err)
 		log.Error("failed to start server: %v", err)
 	}
 }

@@ -16,7 +16,7 @@ type Service struct {
 }
 
 func (s *Service) SaveURL(long string) string {
-	short := s.GenerateUniqueShortLink()
+	short := s.generateUniqueShortLink()
 	s.DB.Save(short, long)
 	return short
 }
@@ -29,13 +29,13 @@ func (s *Service) GetURL(short string) (string, error) {
 	return long, nil
 }
 
-func (s *Service) GenerateUniqueShortLink() string {
+func (s *Service) generateUniqueShortLink() string {
 	const length = 8
 	var uniqString string
 
 	// check if the string is unique
 	for {
-		uniqStringCandidate := GenerateRandomString(length)
+		uniqStringCandidate := generateRandomString(length)
 		_, ok := s.DB.Get(uniqStringCandidate)
 		if !ok {
 			uniqString = uniqStringCandidate
@@ -45,7 +45,7 @@ func (s *Service) GenerateUniqueShortLink() string {
 	return uniqString
 }
 
-func GenerateRandomString(length int) string {
+func generateRandomString(length int) string {
 	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	randomString := make([]byte, length)
 	// generate a random string

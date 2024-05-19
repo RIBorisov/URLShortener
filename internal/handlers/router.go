@@ -21,6 +21,7 @@ func NewRouter(svc *service.Service, log *slog.Logger) *chi.Mux {
 		r.Get("/{id}", GetHandler(svc))
 		r.Post("/", SaveHandler(svc))
 	})
+	router.Post("/api/shorten", ShortenHandler(svc))
 
 	return router
 }

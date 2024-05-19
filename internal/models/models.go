@@ -1,7 +1,7 @@
 package models
 
 import (
-	"fmt"
+	"errors"
 )
 
 type Request struct {
@@ -17,8 +17,10 @@ type SimpleRequest struct {
 }
 
 func (s *SimpleRequest) Validate() error {
-	if len(s.URL) < 3 {
-		return fmt.Errorf("URL should be at least 3 characters long")
+	const minURLLength = 3
+
+	if len(s.URL) < minURLLength {
+		return errors.New("URL should be at least 3 characters long")
 	}
 	return nil
 }

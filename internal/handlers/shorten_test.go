@@ -1,16 +1,19 @@
 package handlers
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+
 	"shortener/internal/config"
 	"shortener/internal/service"
 	"shortener/internal/storage"
-	"strings"
-	"testing"
 )
 
 func TestShortenHandler(t *testing.T) {
@@ -52,14 +55,16 @@ func TestShortenHandler(t *testing.T) {
 			r := httptest.NewRequest(tc.method, route, reqBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, r)
-
 			res := w.Result()
 			resBody, err := io.ReadAll(res.Body)
 			assert.NoError(t, err)
+			if err = res.Body.Close(); err != nil {
+				slog.Error("failed to close response body")
+				return
+			}
 			assert.NotEmpty(t, resBody)
 			assert.Equal(t, tc.want.statusCode, res.StatusCode)
 			assert.Equal(t, tc.want.contentType, res.Header.Get("Content-Type"))
-
 		})
 	}
 }

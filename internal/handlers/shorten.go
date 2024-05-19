@@ -18,12 +18,7 @@ func ShortenHandler(svc *service.Service) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if err := req.Request.Validate(); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		short := svc.SaveURL(req.Request.URL)
+		short := svc.SaveURL(req.URL)
 		resultURL, err := url.JoinPath(svc.BaseURL, short)
 		if err != nil {
 			slog.Error("failed to join path to get result URL", err)

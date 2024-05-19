@@ -27,6 +27,7 @@ func GetHandler(svc *service.Service) http.HandlerFunc {
 		}
 		http.Redirect(w, r, long, http.StatusTemporaryRedirect)
 		w.Header().Set("Location", origin)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, err = w.Write([]byte(long))
 		if err != nil {
 			log.Printf("failed to write the full URL response to client: %v", err)

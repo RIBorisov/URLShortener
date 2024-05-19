@@ -15,8 +15,6 @@ func NewRouter(svc *service.Service, log *slog.Logger) *chi.Mux {
 
 	router.Use(middleware.Recoverer)
 	router.Use(mw.New(log))
-	router.Use(middleware.SetHeader("Content-Type", "text/plain; charset=utf-8"))
-
 	router.Route("/", func(r chi.Router) {
 		r.Get("/{id}", GetHandler(svc))
 		r.Post("/", SaveHandler(svc))

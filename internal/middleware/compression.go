@@ -6,47 +6,6 @@ import (
 	"strings"
 )
 
-//
-//import (
-//	"compress/gzip"
-//	"io"
-//	"net/http"
-//	"strings"
-//)
-//
-//type gzipWriter struct {
-//	http.ResponseWriter
-//	Writer io.Writer
-//}
-//
-//func (w gzipWriter) Write(b []byte) (int, error) {
-//	// w.Writer будет отвечать за gzip-сжатие, поэтому пишем в него
-//	return w.Writer.Write(b)
-//}
-//
-//func GzipHandler(next http.Handler) http.Handler {
-//	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-//			next.ServeHTTP(w, r)
-//			return
-//		}
-//		if !shouldCompress(r.Header.Get("Content-Type")) {
-//			next.ServeHTTP(w, r)
-//			return
-//		}
-//
-//		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
-//		if err != nil {
-//			io.WriteString(w, err.Error())
-//			return
-//		}
-//		defer gz.Close()
-//
-//		w.Header().Set("Content-Encoding", "gzip")
-//		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
-//	})
-//}
-
 func shouldCompress(header string) bool {
 	contentTypes := []string{
 		"text/html",
@@ -72,7 +31,14 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		if supportsGzip {
 			cw := newCompressWriter(w)
 			ow = cw
-			defer cw.Close()
+			defer func(cw *compressWriter) {
+				err := cw.Close()
+				if err != nil {
+					slog.Error("failed to close compressWriter")
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			}(cw)
 		}
 
 		contentEncoding := r.Header.Get("Content-Encoding")
@@ -85,7 +51,14 @@ func GzipMiddleware(next http.Handler) http.Handler {
 				return
 			}
 			r.Body = cr
-			defer cr.Close()
+			defer func(cr *compressReader) {
+				err := cr.Close()
+				if err != nil {
+					slog.Error("failed to close compressReader")
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			}(cr)
 		}
 		next.ServeHTTP(ow, r)
 	})

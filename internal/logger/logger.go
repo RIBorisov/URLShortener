@@ -10,7 +10,6 @@ func Initialize() *slog.Logger {
 	return slog.Default()
 }
 
-// Err обертка для логирования ошибки
 func Err(message string, value interface{}) {
 	slog.Error(message, slog.String("err", fmt.Sprintf("%v", value)))
 }

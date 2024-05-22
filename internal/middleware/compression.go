@@ -8,7 +8,7 @@ import (
 
 func allowedContentTypes(header string) bool {
 	contentTypes := []string{
-		"text/html; charset=UTF-8",
+		"text/html",
 		"application/json",
 	}
 	for _, item := range contentTypes {
@@ -49,7 +49,6 @@ func GzipMiddleware(next http.Handler) http.Handler {
 				logger.Err("failed to read compressed body", err)
 				next.ServeHTTP(w, r)
 				return
-
 			}
 			r.Body = cr
 			defer func(cr *compressReader) {

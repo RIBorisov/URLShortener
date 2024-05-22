@@ -1,9 +1,10 @@
 package handlers
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"shortener/internal/logger"
 
 	"github.com/go-chi/chi/v5"
 
@@ -15,18 +16,18 @@ func GetHandler(svc *service.Service) http.HandlerFunc {
 		short := chi.URLParam(r, "id")
 		long, err := svc.GetURL(short)
 		if err != nil {
-			log.Printf("failed to get URL: %v", err)
+			logger.Err("failed to get URL", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		origin, err := url.JoinPath(svc.BaseURL, short)
-		log.Printf(">>> ORIGIN: %v, LONG: %v", origin, long)
 		if err != nil {
-			log.Printf("failed to join path to get redirect URL: %v", err)
+			logger.Err("failed to join path to get redirect URL", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Location", origin)
-		http.Redirect(w, r, long, http.StatusTemporaryRedirect)
+		slog.Info(">>> GOT: ", "ORIGIN", origin)
+		w.Header().Set("Location", string(origin))
+		http.Redirect(w, r, string(long), http.StatusTemporaryRedirect)
 	}
 }

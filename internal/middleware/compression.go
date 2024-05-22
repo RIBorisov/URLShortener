@@ -48,8 +48,10 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
 				logger.Err("failed to read compressed body", err)
-				w.WriteHeader(http.StatusInternalServerError)
+				//w.WriteHeader(http.StatusInternalServerError) !@#$%^!!!!!!!!!!!!!!!!!!!!
+				next.ServeHTTP(w, r)
 				return
+
 			}
 			r.Body = cr
 			defer func(cr *compressReader) {

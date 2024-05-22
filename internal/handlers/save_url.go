@@ -11,6 +11,11 @@ import (
 
 func SaveHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		//var bodyReader io.Reader = r.Body
+		//
+		//if r.Header.Get("Content-Encoding") == "gzip" {
+		//	gzi
+		//}
 		long, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("failed to read body: %v", err)

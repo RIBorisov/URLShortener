@@ -25,13 +25,7 @@ func GetHandler(svc *service.Service) http.HandlerFunc {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		http.Redirect(w, r, long, http.StatusTemporaryRedirect)
 		w.Header().Set("Location", origin)
-		_, err = w.Write([]byte(long))
-		if err != nil {
-			log.Printf("failed to write the full URL response to client: %v", err)
-			http.Error(w, "", http.StatusInternalServerError)
-			return
-		}
+		http.Redirect(w, r, long, http.StatusTemporaryRedirect)
 	}
 }

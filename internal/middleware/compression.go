@@ -6,25 +6,25 @@ import (
 	"strings"
 )
 
-func shouldCompress(header string) bool {
-	contentTypes := []string{
-		"text/html",
-		"application/json",
-	}
-	for _, item := range contentTypes {
-		if item == header {
-			return true
-		}
-	}
-	return false
-}
+//func shouldCompress(header string) bool {
+//	contentTypes := []string{
+//		"text/html",
+//		"application/json",
+//	}
+//	for _, item := range contentTypes {
+//		if item == header {
+//			return true
+//		}
+//	}
+//	return false
+//}
 
 func GzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !shouldCompress(w.Header().Get("Content-Type")) {
-			next.ServeHTTP(w, r)
-			return
-		}
+		//if !shouldCompress(w.Header().Get("Content-Type")) {
+		//	next.ServeHTTP(w, r)
+		//	return
+		//}
 		ow := w
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")

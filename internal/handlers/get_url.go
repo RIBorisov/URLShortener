@@ -20,6 +20,7 @@ func GetHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 		origin, err := url.JoinPath(svc.BaseURL, short)
+		log.Printf(">>> ORIGIN: %v, LONG: %v", origin, long)
 		if err != nil {
 			log.Printf("failed to join path to get redirect URL: %v", err)
 			http.Error(w, "", http.StatusInternalServerError)

@@ -2,14 +2,13 @@ package middleware
 
 import (
 	"net/http"
-	"strings"
-
 	"shortener/internal/logger"
+	"strings"
 )
 
 func allowedContentTypes(header string) bool {
 	contentTypes := []string{
-		"text/html",
+		"text/html; charset=UTF-8",
 		"application/json",
 	}
 	for _, item := range contentTypes {
@@ -45,14 +44,9 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		contentEncoding := r.Header.Get("Content-Encoding")
 		sendsGzip := strings.Contains(contentEncoding, "gzip")
 		if sendsGzip {
-			if !allowedContentTypes(r.Header.Get("Content-Type")) {
-				next.ServeHTTP(w, r)
-				return
-			}
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
 				logger.Err("failed to read compressed body", err)
-				//w.WriteHeader(http.StatusInternalServerError) !@#$%^!!!!!!!!!!!!!!!!!!!!
 				next.ServeHTTP(w, r)
 				return
 

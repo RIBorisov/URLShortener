@@ -46,7 +46,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		if sendsGzip {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
-				slog.Error("failed to compress request body")
+				slog.Error("failed to read compressed body")
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}

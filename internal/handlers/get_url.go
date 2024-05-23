@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"log/slog"
 	"net/http"
 	"net/url"
 	"shortener/internal/logger"
@@ -26,8 +25,7 @@ func GetHandler(svc *service.Service) http.HandlerFunc {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		slog.Info(">>> GOT: ", "ORIGIN", origin)
-		w.Header().Set("Location", string(origin))
-		http.Redirect(w, r, string(long), http.StatusTemporaryRedirect)
+		w.Header().Set("Location", origin)
+		http.Redirect(w, r, long, http.StatusTemporaryRedirect)
 	}
 }

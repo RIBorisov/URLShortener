@@ -28,7 +28,14 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			if allowedContentTypes(r.Header.Get("Content-Type")) {
 				cw := newCompressWriter(w)
 				ow = cw
-				defer cw.Close()
+				defer func() {
+					err := cw.Close()
+					if err != nil {
+						logger.Err("failed to close compress writer", err)
+						http.Error(w, "", http.StatusInternalServerError)
+						return
+					}
+				}()
 			}
 		}
 
@@ -43,7 +50,14 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			}
 
 			r.Body = cr
-			defer cr.Close()
+			defer func() {
+				err = cr.Close()
+				if err != nil {
+					logger.Err("failed to close compress reader", err)
+					http.Error(w, "", http.StatusInternalServerError)
+					return
+				}
+			}()
 		}
 		next.ServeHTTP(ow, r)
 	})

@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -14,9 +13,6 @@ func New(log *slog.Logger) func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-			fmt.Printf("\n>>>r.Headers are: %+v<<<", r.Header.Clone())
-			fmt.Printf("\n>>>r.URL.Path is: %+v<<<\n", r.URL.Path)
-
 			defer func() {
 				log.Info(
 					"OK",

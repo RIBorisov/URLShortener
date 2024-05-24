@@ -24,7 +24,7 @@ func TestShortenHandler(t *testing.T) {
 
 	cfg := config.LoadConfig()
 	db := storage.LoadStorage()
-	svc := &service.Service{DB: db, BaseURL: cfg.Server.BaseURL}
+	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL}
 	type want struct {
 		statusCode  int
 		contentType string

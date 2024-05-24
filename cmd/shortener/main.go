@@ -15,16 +15,21 @@ func main() {
 	cfg := config.LoadConfig()
 	db := storage.LoadStorage()
 	log := logger.Initialize()
-	svc := &service.Service{DB: db, BaseURL: cfg.Server.BaseURL}
+	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL}
 
 	r := handlers.NewRouter(svc, log)
 
 	srv := &http.Server{
-		Addr:    cfg.Server.ServerAddress,
+		Addr:    cfg.Service.ServerAddress,
 		Handler: r,
 	}
 
-	log.Info("server starting ", slog.String("host", cfg.Server.ServerAddress))
+	log.Info(
+		"server starting...",
+		slog.String("host", cfg.Service.ServerAddress),
+		slog.String("baseURL", cfg.Service.BaseURL),
+		slog.String("fileStoragePath", cfg.Service.FileStoragePath),
+	)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Error("failed to start server: %v", err)
 	}

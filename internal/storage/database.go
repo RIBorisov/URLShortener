@@ -1,9 +1,11 @@
 package storage
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -16,11 +18,49 @@ type URLRecord struct {
 	OriginalURL string `json:"original_url"`
 }
 
-func ReadFileStorage(filename string) (map[string]string, error) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %w", err)
+type Consumer struct {
+	file   *os.File
+	reader *bufio.Scanner
+}
+
+func prepareDir(filename string) error {
+	dir := filepath.Dir(filename)
+	_, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		err = os.MkdirAll(dir, 0666)
+		if err != nil {
+			return fmt.Errorf("failed to create directories: %w", err)
+		}
 	}
+	return nil
+}
+
+func NewConsumer(filename string) (*Consumer, error) {
+	err := prepareDir(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare direcory: %w", err)
+	}
+	file, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	return &Consumer{
+		file:   file,
+		reader: bufio.NewScanner(file),
+	}, nil
+}
+
+func ReadFileStorage(filename string) (map[string]string, error) {
+	consumer, err := NewConsumer(filename)
+	if err != nil {
+		logger.Err("failed to create new consumer: ", err)
+		return nil, fmt.Errorf("failed to create new consumer: %w", err)
+	}
+	data := consumer.reader.Bytes()
+	//data, err := os.ReadFile(filename)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to read file %w", err)
+	//}
 
 	var URLs = map[string]string{}
 	rows := strings.Split(string(data), "\n")

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 )
 
@@ -44,10 +45,13 @@ func LoadConfig() *Config {
 		envFileStorage := os.Getenv("FILE_STORAGE_PATH")
 		switch {
 		case envFileStorage != "":
+			log.Printf(">>> envFileStorage: %s", envFileStorage)
 			cfg.Service.FileStoragePath = envFileStorage
 		case f.FileStoragePath != "":
+			log.Printf(">>> envFileStorage: %s", f.FileStoragePath)
 			cfg.Service.FileStoragePath = f.FileStoragePath
 		default:
+			log.Printf(">>> defaultFilePath: %s", defaultFilePath)
 			cfg.Service.FileStoragePath = defaultFilePath
 		}
 	}

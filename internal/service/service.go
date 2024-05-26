@@ -21,9 +21,12 @@ type Service struct {
 func (s *Service) SaveURL(long string) string {
 	short := s.generateUniqueShortLink()
 	s.DB.Save(short, long)
-	err := storage.AppendToFile(s.FileStoragePath, short, long)
-	if err != nil {
-		logger.Err("failed append to file %w", err)
+
+	if s.FileStoragePath != "" {
+		err := storage.AppendToFile(s.FileStoragePath, short, long)
+		if err != nil {
+			logger.Err("failed append to file %w", err)
+		}
 	}
 	return short
 }

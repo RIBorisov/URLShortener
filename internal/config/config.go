@@ -39,14 +39,17 @@ func LoadConfig() *Config {
 	} else {
 		cfg.Service.ServerAddress = f.ServerAddress
 	}
-	envFileStorage := os.Getenv("FILE_STORAGE_PATH")
-	switch {
-	case envFileStorage != "":
-		cfg.Service.FileStoragePath = envFileStorage
-	case f.FileStoragePath != "":
-		cfg.Service.FileStoragePath = f.FileStoragePath
-	default:
-		cfg.Service.FileStoragePath = defaultFilePath
+
+	if f.FileStoragePath != "" {
+		envFileStorage := os.Getenv("FILE_STORAGE_PATH")
+		switch {
+		case envFileStorage != "":
+			cfg.Service.FileStoragePath = envFileStorage
+		case f.FileStoragePath != "":
+			cfg.Service.FileStoragePath = f.FileStoragePath
+		default:
+			cfg.Service.FileStoragePath = defaultFilePath
+		}
 	}
 
 	return &cfg

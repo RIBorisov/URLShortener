@@ -19,9 +19,13 @@ func (s *Storage) Save(shortLink, longLink string) {
 }
 
 func LoadStorage(cfg *config.Config) (*Storage, error) {
-	URLs, err := ReadFileStorage(cfg.Service.FileStoragePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file storage %w", err)
+	if cfg.Service.FileStoragePath == "" {
+		return &Storage{URLs: make(map[string]string)}, nil
+	} else {
+		URLs, err := ReadFileStorage(cfg.Service.FileStoragePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read file storage %w", err)
+		}
+		return &Storage{URLs: URLs}, nil
 	}
-	return &Storage{URLs: URLs}, nil
 }

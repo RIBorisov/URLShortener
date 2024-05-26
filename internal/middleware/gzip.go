@@ -46,16 +46,16 @@ type compressReader struct {
 
 func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 	// reading only header to check if the r is gzip
-	h, err := gzip.NewReader(io.LimitReader(r, 10))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get header %w", err)
-	}
-	if err = h.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close reader %w", err)
-	}
+	//h, err := gzip.NewReader(io.LimitReader(r, 10))
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to get header %w", err)
+	//}
+	//if err = h.Close(); err != nil {
+	//	return nil, fmt.Errorf("failed to close reader %w", err)
+	//}
 	zr, err := gzip.NewReader(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create new reader: %w", err)
 	}
 
 	return &compressReader{

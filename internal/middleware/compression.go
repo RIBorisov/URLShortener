@@ -45,19 +45,19 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
 				logger.Err("failed to read compressed body", err)
-				http.Error(w, "", http.StatusInternalServerError)
-				return
+				//http.Error(w, "", http.StatusInternalServerError)
+				//return
+			} else {
+				r.Body = cr
+				defer func() {
+					err = cr.Close()
+					if err != nil {
+						logger.Err("failed to close compress reader", err)
+						http.Error(w, "", http.StatusInternalServerError)
+						return
+					}
+				}()
 			}
-
-			r.Body = cr
-			defer func() {
-				err = cr.Close()
-				if err != nil {
-					logger.Err("failed to close compress reader", err)
-					http.Error(w, "", http.StatusInternalServerError)
-					return
-				}
-			}()
 		}
 		next.ServeHTTP(ow, r)
 	})

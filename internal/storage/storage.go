@@ -1,18 +1,27 @@
 package storage
 
+import (
+	"fmt"
+	"shortener/internal/config"
+)
+
 type Storage struct {
 	URLs map[string]string
 }
 
-func (m *Storage) Get(shortLink string) (string, bool) {
-	longLink, ok := m.URLs[shortLink]
+func (s *Storage) Get(shortLink string) (string, bool) {
+	longLink, ok := s.URLs[shortLink]
 	return longLink, ok
 }
 
-func (m *Storage) Save(shortLink, longLink string) {
-	m.URLs[shortLink] = longLink
+func (s *Storage) Save(shortLink, longLink string) {
+	s.URLs[shortLink] = longLink
 }
 
-func LoadStorage() *Storage {
-	return &Storage{URLs: make(map[string]string)}
+func LoadStorage(cfg *config.Config) (*Storage, error) {
+	URLs, err := ReadFileStorage(cfg.Service.FileStoragePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file storage %w", err)
+	}
+	return &Storage{URLs: URLs}, nil
 }

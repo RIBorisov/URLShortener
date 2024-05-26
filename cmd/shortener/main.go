@@ -12,10 +12,14 @@ import (
 )
 
 func main() {
-	cfg := config.LoadConfig()
-	db := storage.LoadStorage()
 	log := logger.Initialize()
-	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL}
+
+	cfg := config.LoadConfig()
+	db, err := storage.LoadStorage(cfg)
+	if err != nil {
+		log.Error("failed to load storage", err)
+	}
+	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL, FileStoragePath: cfg.Service.FileStoragePath}
 
 	r := handlers.NewRouter(svc, log)
 

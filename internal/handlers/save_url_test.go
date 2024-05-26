@@ -19,7 +19,8 @@ import (
 
 func TestSaveHandler(t *testing.T) {
 	cfg := config.LoadConfig()
-	db := storage.LoadStorage()
+	db, err := storage.LoadStorage(cfg)
+	assert.NoError(t, err)
 	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL}
 	type want struct {
 		statusCode int

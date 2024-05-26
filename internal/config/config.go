@@ -20,6 +20,7 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
+	const defaultFilePath = "/tmp/short-url-db.json"
 	var cfg Config
 
 	f := parseFlags()
@@ -38,11 +39,15 @@ func LoadConfig() *Config {
 	} else {
 		cfg.Service.ServerAddress = f.ServerAddress
 	}
-	envFileStorage, ok := os.LookupEnv("FILE_STORAGE_PATH")
-	if ok {
+	envFileStorage := os.Getenv("FILE_STORAGE_PATH")
+	switch {
+	case envFileStorage != "":
 		cfg.Service.FileStoragePath = envFileStorage
-	} else {
+	case f.FileStoragePath != "":
 		cfg.Service.FileStoragePath = f.FileStoragePath
+	default:
+		cfg.Service.FileStoragePath = defaultFilePath
 	}
+
 	return &cfg
 }

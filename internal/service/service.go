@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"math/rand"
+
 	"shortener/internal/logger"
 	"shortener/internal/storage"
 )

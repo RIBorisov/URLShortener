@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"net/http"
-	"shortener/internal/logger"
 	"strings"
+
+	"shortener/internal/logger"
 )
 
 func allowedContentTypes(header string) bool {
@@ -46,8 +47,6 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
 				logger.Err("failed to read compressed body", err)
-				//http.Error(w, "", http.StatusInternalServerError)
-				//return
 			} else {
 				r.Body = cr
 				defer func() {

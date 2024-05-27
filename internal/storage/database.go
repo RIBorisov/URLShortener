@@ -53,14 +53,9 @@ func NewConsumer(filename string) (*Consumer, error) {
 func ReadFileStorage(filename string) (map[string]string, error) {
 	consumer, err := NewConsumer(filename)
 	if err != nil {
-		logger.Err("failed to create new consumer: ", err)
 		return nil, fmt.Errorf("failed to create new consumer: %w", err)
 	}
 	data := consumer.reader.Bytes()
-	//data, err := os.ReadFile(filename)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to read file %w", err)
-	//}
 
 	var URLs = map[string]string{}
 	rows := strings.Split(string(data), "\n")
@@ -80,7 +75,7 @@ func ReadFileStorage(filename string) (map[string]string, error) {
 }
 
 func AppendToFile(filename, short, long string) error {
-	uuid, err := GenerateNextUUID(filename)
+	uuid, err := generateNextUUID(filename)
 	if err != nil {
 		return fmt.Errorf("failed to generate next uuid %w", err)
 	}
@@ -113,7 +108,7 @@ func AppendToFile(filename, short, long string) error {
 	return nil
 }
 
-func GenerateNextUUID(filename string) (string, error) {
+func generateNextUUID(filename string) (string, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return "", fmt.Errorf("failed to read file %w", err)

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -54,8 +55,7 @@ func (c compressReader) Read(p []byte) (int, error) {
 }
 
 func (c *compressReader) Close() error {
-	if err := c.r.Close(); err != nil {
-		return err
-	}
-	return c.zr.Close()
+	err1 := c.r.Close()
+	err2 := c.zr.Close()
+	return errors.Join(err1, err2)
 }

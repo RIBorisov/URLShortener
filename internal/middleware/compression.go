@@ -39,10 +39,10 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		contentEncoding := r.Header.Get("Content-Encoding")
 		sendsGzip := strings.Contains(contentEncoding, "gzip")
 		if sendsGzip {
-			//r.Header.Set("Content-Type", "application/gzip")
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
 				logger.Err("failed to read compressed body", err)
+				http.Error(w, "check if gzip data is valid", http.StatusBadRequest)
 			} else {
 				r.Body = cr
 				defer func() {

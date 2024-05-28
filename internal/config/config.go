@@ -25,6 +25,7 @@ func LoadConfig() *Config {
 
 	f := parseFlags()
 	cfg.URL.Length = 8
+	cfg.Service.FileStoragePath = defaultFilePath
 
 	envBaseURL, ok := os.LookupEnv("BASE_URL")
 	if ok {
@@ -40,16 +41,11 @@ func LoadConfig() *Config {
 		cfg.Service.ServerAddress = f.ServerAddress
 	}
 
-	if f.FileStoragePath != "" {
-		envFileStorage := os.Getenv("FILE_STORAGE_PATH")
-		switch {
-		case envFileStorage != "":
-			cfg.Service.FileStoragePath = envFileStorage
-		case f.FileStoragePath != "":
-			cfg.Service.FileStoragePath = f.FileStoragePath
-		default:
-			cfg.Service.FileStoragePath = defaultFilePath
-		}
+	path, ok := os.LookupEnv("FILE_STORAGE_PATH")
+	if ok {
+		cfg.Service.FileStoragePath = path
+	} else if f.FileStoragePath != "" {
+		cfg.Service.FileStoragePath = f.FileStoragePath
 	}
 
 	return &cfg

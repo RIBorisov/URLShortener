@@ -7,17 +7,13 @@ import (
 	"shortener/internal/logger"
 )
 
-func allowedContentTypes(header string) bool {
-	contentTypes := []string{
-		"text/html",
-		"application/json",
+func allowedContentType(header string) bool {
+	allowed := map[string]struct{}{
+		"text/html":        {},
+		"application/json": {},
 	}
-	for _, item := range contentTypes {
-		if item == header {
-			return true
-		}
-	}
-	return false
+	_, ok := allowed[header]
+	return ok
 }
 
 func GzipMiddleware(next http.Handler) http.Handler {
@@ -26,7 +22,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
-			if allowedContentTypes(r.Header.Get("Content-Type")) {
+			if allowedContentType(r.Header.Get("Content-Type")) {
 				cw := newCompressWriter(w)
 				ow = cw
 				defer func() {

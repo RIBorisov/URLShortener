@@ -21,7 +21,7 @@ func main() {
 	}
 	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL, FileStoragePath: cfg.Service.FileStoragePath}
 
-	r := handlers.NewRouter(svc, log)
+	r := handlers.NewRouter(svc)
 
 	srv := &http.Server{
 		Addr:    cfg.Service.ServerAddress,

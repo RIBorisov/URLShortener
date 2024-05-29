@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"shortener/internal/logger"
 )
@@ -51,22 +50,18 @@ func NewConsumer(filename string) (*Consumer, error) {
 }
 
 func ReadFileStorage(filename string) (map[string]string, error) {
-	consumer, err := NewConsumer(filename)
+	c, err := NewConsumer(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new consumer: %w", err)
 	}
-	data := consumer.reader.Bytes()
-
+	var urlRecord URLRecord
 	var URLs = map[string]string{}
-	rows := strings.Split(string(data), "\n")
-	for _, row := range rows {
-		if row == "" {
-			continue
-		}
-		var urlRecord URLRecord
+
+	for c.reader.Scan() {
+		row := c.reader.Text()
 		err = json.Unmarshal([]byte(row), &urlRecord)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal row %w", err)
+			return nil, fmt.Errorf("failed to unmarshal row: %w", err)
 		}
 		URLs[urlRecord.ShortURL] = urlRecord.OriginalURL
 	}
@@ -109,11 +104,13 @@ func AppendToFile(filename, short, long string) error {
 }
 
 func generateNextUUID(filename string) (string, error) {
-	data, err := os.ReadFile(filename)
+	c, err := NewConsumer(filename)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file %w", err)
+		return "", fmt.Errorf("failed to create consumer: %w", err)
 	}
-	rows := strings.Split(string(data), "\n")
-
-	return strconv.Itoa(len(rows)), nil
+	cnt := 0
+	for c.reader.Scan() {
+		cnt++
+	}
+	return strconv.Itoa(cnt), nil
 }

@@ -19,7 +19,7 @@ import (
 
 func TestSaveHandler(t *testing.T) {
 	cfg := config.LoadConfig()
-	db, err := storage.LoadStorage(cfg)
+	db, err := storage.NewStorage(cfg)
 	assert.NoError(t, err)
 	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL}
 	type want struct {

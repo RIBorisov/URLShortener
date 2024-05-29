@@ -4,17 +4,11 @@ import (
 	"fmt"
 	"math/rand"
 
-	"shortener/internal/logger"
 	"shortener/internal/storage"
 )
 
-type URLStorage interface {
-	Get(shortLink string) (string, bool)
-	Save(shortLink, longLink string)
-}
-
 type Service struct {
-	DB              URLStorage
+	DB              storage.URLStorage
 	FileStoragePath string
 	BaseURL         string
 }
@@ -22,13 +16,6 @@ type Service struct {
 func (s *Service) SaveURL(long string) string {
 	short := s.generateUniqueShortLink()
 	s.DB.Save(short, long)
-
-	if s.FileStoragePath != "" {
-		err := storage.AppendToFile(s.FileStoragePath, short, long)
-		if err != nil {
-			logger.Err("failed append to file %w", err)
-		}
-	}
 	return short
 }
 

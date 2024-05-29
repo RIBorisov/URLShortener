@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"shortener/internal/logger"
 )
@@ -69,13 +68,9 @@ func ReadFileStorage(filename string) (map[string]string, error) {
 	return URLs, nil
 }
 
-func AppendToFile(filename, short, long string) error {
-	uuid, err := generateNextUUID(filename)
-	if err != nil {
-		return fmt.Errorf("failed to generate next uuid %w", err)
-	}
+func AppendToFile(filename, short, long string, uuid uint64) error {
 	urlRecord := URLRecord{
-		UUID:        uuid,
+		UUID:        fmt.Sprintf("%d", uuid+1),
 		ShortURL:    short,
 		OriginalURL: long,
 	}
@@ -101,16 +96,4 @@ func AppendToFile(filename, short, long string) error {
 	}
 
 	return nil
-}
-
-func generateNextUUID(filename string) (string, error) {
-	c, err := NewConsumer(filename)
-	if err != nil {
-		return "", fmt.Errorf("failed to create consumer: %w", err)
-	}
-	cnt := 0
-	for c.reader.Scan() {
-		cnt++
-	}
-	return strconv.Itoa(cnt), nil
 }

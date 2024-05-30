@@ -43,6 +43,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			if err != nil {
 				logger.Err("failed to read compressed body", err)
 				http.Error(w, "check if gzip data is valid", http.StatusBadRequest)
+				return
 			} else {
 				r.Body = cr
 				defer func() {

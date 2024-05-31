@@ -14,7 +14,7 @@ type inMemory struct {
 	counter uint64
 }
 
-type InFile struct {
+type inFile struct {
 	inMemory
 	filePath string
 }
@@ -38,7 +38,7 @@ func (s *inMemory) Save(shortLink, longLink string) {
 	s.counter++
 }
 
-func (s *InFile) Save(shortLink, longLink string) {
+func (s *inFile) Save(shortLink, longLink string) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	s.urls[shortLink] = longLink
@@ -49,7 +49,7 @@ func (s *InFile) Save(shortLink, longLink string) {
 	s.counter++
 }
 
-func (s *InFile) restore() error {
+func (s *inFile) restore() error {
 	if s.filePath != "" {
 		mapping, err := ReadFileStorage(s.filePath)
 		if err != nil {
@@ -70,7 +70,7 @@ func NewStorage(cfg *config.Config) (URLStorage, error) {
 			mux:  &sync.RWMutex{},
 		}, nil
 	}
-	storage := &InFile{
+	storage := &inFile{
 		inMemory: inMemory{
 			urls: make(map[string]string),
 			mux:  &sync.RWMutex{},

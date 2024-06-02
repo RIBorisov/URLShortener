@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,68 +10,62 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"shortener/internal/config"
 	"shortener/internal/service"
 	"shortener/internal/storage"
 )
 
-func TestSaveHandler(t *testing.T) {
+func TestShortenHandler(t *testing.T) {
+	const (
+		ct    = "application/json"
+		route = "/api/shorten"
+	)
+
 	cfg := config.LoadConfig()
 	db, err := storage.NewStorage(cfg)
 	assert.NoError(t, err)
 	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL}
 	type want struct {
-		statusCode int
+		statusCode  int
+		contentType string
 	}
 	cases := []struct {
 		name   string
-		route  string
 		method string
 		body   string
 		want   want
 	}{
 		{
 			name:   "Positive #1",
-			route:  "/",
 			method: http.MethodPost,
-			body:   "https://dzen.ru",
+			body:   `{"request": {"type": "SimpleRequest", "url": "https://www.kinopoisk.ru/"}}`,
 			want: want{
-				statusCode: http.StatusCreated,
-			},
-		},
-		{
-			name:   "Positive #2",
-			route:  "/",
-			method: http.MethodPost,
-			body:   "https://example.org",
-			want: want{
-				statusCode: http.StatusCreated,
+				statusCode:  http.StatusCreated,
+				contentType: ct,
 			},
 		},
 	}
 
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
 			router := chi.NewRouter()
-			router.Post("/", SaveHandler(svc))
+			router.Post(route, ShortenHandler(svc))
 
-			reqBody := strings.NewReader(tt.body)
-			r := httptest.NewRequest(tt.method, tt.route, reqBody)
+			reqBody := strings.NewReader(tc.body)
+			r := httptest.NewRequest(tc.method, route, reqBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, r)
 			res := w.Result()
 			resBody, err := io.ReadAll(res.Body)
-			if err != nil {
-				log.Printf("error when reading response body")
-			}
+			assert.NoError(t, err)
 			if err = res.Body.Close(); err != nil {
-				log.Printf("error when closing response body")
+				slog.Error("failed to close response body")
+				return
 			}
-			require.NoError(t, err)
 			assert.NotEmpty(t, resBody)
-			assert.Equal(t, res.StatusCode, tt.want.statusCode)
+			assert.Equal(t, tc.want.statusCode, res.StatusCode)
+			assert.Equal(t, tc.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
 }

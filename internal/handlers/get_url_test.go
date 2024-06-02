@@ -32,7 +32,7 @@ func TestGetHandler(t *testing.T) {
 	cfg := config.LoadConfig()
 
 	mockedDB := &MockDB{}
-	svc := &service.Service{DB: mockedDB, BaseURL: cfg.Server.BaseURL}
+	svc := &service.Service{DB: mockedDB, BaseURL: cfg.Service.BaseURL}
 
 	type want struct {
 		contentType string

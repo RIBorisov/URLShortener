@@ -3,16 +3,14 @@ package service
 import (
 	"fmt"
 	"math/rand"
+
+	"shortener/internal/storage"
 )
 
-type URLStorage interface {
-	Get(shortLink string) (string, bool)
-	Save(shortLink, longLink string)
-}
-
 type Service struct {
-	DB      URLStorage
-	BaseURL string
+	DB              storage.URLStorage
+	FileStoragePath string
+	BaseURL         string
 }
 
 func (s *Service) SaveURL(long string) string {

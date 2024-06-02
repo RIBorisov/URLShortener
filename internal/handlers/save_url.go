@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-
+	"shortener/internal/logger"
 	"shortener/internal/service"
 )
 
@@ -13,7 +13,7 @@ func SaveHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		long, err := io.ReadAll(r.Body)
 		if err != nil {
-			log.Printf("failed to read body: %v", err)
+			logger.Err("failed to read body", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
@@ -25,6 +25,7 @@ func SaveHandler(svc *service.Service) http.HandlerFunc {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusCreated)
 		_, err = w.Write([]byte(resultURL))
 		if err != nil {

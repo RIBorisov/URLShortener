@@ -1,0 +1,14 @@
+version: '3.7'
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: "videos"
+      POSTGRES_PASSWORD: "videos"
+      POSTGRES_DB: "videos" # DB_NAME
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql

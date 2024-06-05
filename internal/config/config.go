@@ -31,6 +31,8 @@ func LoadConfig() *Config {
 	dsn, ok := os.LookupEnv("DATABASE_DSN")
 	if ok {
 		cfg.Service.DatabaseDSN = dsn
+	} else {
+		cfg.Service.DatabaseDSN = f.DatabaseDSN
 	}
 
 	envBaseURL, ok := os.LookupEnv("BASE_URL")

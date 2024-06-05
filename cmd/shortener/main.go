@@ -5,8 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	//_ "github.com/jackc/pgx/v5"
-
 	"shortener/internal/config"
 	"shortener/internal/handlers"
 	"shortener/internal/logger"
@@ -21,10 +19,7 @@ func main() {
 	cfg := config.LoadConfig()
 	store, err := storage.NewStorage(cfg)
 	if err != nil {
-		log.Error("failed to load store", err)
-	}
-	if err != nil {
-		log.Error("failed to init DB", err)
+		log.Error("failed to load storage", err)
 	}
 	svc := &service.Service{
 		Storage:         store,

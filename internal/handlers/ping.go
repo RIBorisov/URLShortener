@@ -12,12 +12,12 @@ import (
 func PingHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pool, err := db.NewDB(ctx, svc.DSN)
-		defer pool.Pool.Close()
 		if err != nil {
 			logger.Err("failed to get new DB", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
+		defer pool.Pool.Close()
 
 		if err = pool.Pool.Ping(ctx); err != nil {
 			logger.Err("failed to ping DB", err)

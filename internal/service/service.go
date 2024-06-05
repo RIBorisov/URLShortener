@@ -8,19 +8,20 @@ import (
 )
 
 type Service struct {
-	DB              storage.URLStorage
+	Storage         storage.URLStorage
 	FileStoragePath string
 	BaseURL         string
+	DSN             string
 }
 
 func (s *Service) SaveURL(long string) string {
 	short := s.generateUniqueShortLink()
-	s.DB.Save(short, long)
+	s.Storage.Save(short, long)
 	return short
 }
 
 func (s *Service) GetURL(short string) (string, error) {
-	long, ok := s.DB.Get(short)
+	long, ok := s.Storage.Get(short)
 	if !ok {
 		return "", fmt.Errorf("not found long URL by passed short URL: %s", short)
 	}
@@ -34,7 +35,7 @@ func (s *Service) generateUniqueShortLink() string {
 	// check if the string is unique
 	for {
 		uniqStringCandidate := generateRandomString(length)
-		_, ok := s.DB.Get(uniqStringCandidate)
+		_, ok := s.Storage.Get(uniqStringCandidate)
 		if !ok {
 			uniqString = uniqStringCandidate
 			break

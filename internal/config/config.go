@@ -8,6 +8,7 @@ type ServiceConfig struct {
 	ServerAddress   string `env:"SERVER_ADDRESS" env-default:":8080"`
 	BaseURL         string `env:"BASE_URL" env-default:"http://localhost:8080"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH" env-default:"/tmp/short-url-db.json"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 type URLDetail struct {
@@ -26,6 +27,11 @@ func LoadConfig() *Config {
 	f := parseFlags()
 	cfg.URL.Length = 8
 	cfg.Service.FileStoragePath = defaultFilePath
+
+	dsn, ok := os.LookupEnv("DATABASE_DSN")
+	if ok {
+		cfg.Service.DatabaseDSN = dsn
+	}
 
 	envBaseURL, ok := os.LookupEnv("BASE_URL")
 	if ok {

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+
+	//_ "github.com/jackc/pgx/v5"
 
 	"shortener/internal/config"
 	"shortener/internal/handlers"
@@ -12,16 +15,25 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
 	log := logger.Initialize()
 
 	cfg := config.LoadConfig()
-	db, err := storage.NewStorage(cfg)
+	store, err := storage.NewStorage(cfg)
 	if err != nil {
-		log.Error("failed to load storage", err)
+		log.Error("failed to load store", err)
 	}
-	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL, FileStoragePath: cfg.Service.FileStoragePath}
+	if err != nil {
+		log.Error("failed to init DB", err)
+	}
+	svc := &service.Service{
+		Storage:         store,
+		BaseURL:         cfg.Service.BaseURL,
+		FileStoragePath: cfg.Service.FileStoragePath,
+		DSN:             cfg.Service.DatabaseDSN,
+	}
 
-	r := handlers.NewRouter(svc)
+	r := handlers.NewRouter(ctx, svc)
 
 	srv := &http.Server{
 		Addr:    cfg.Service.ServerAddress,

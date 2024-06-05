@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
@@ -8,7 +9,7 @@ import (
 	"shortener/internal/service"
 )
 
-func NewRouter(svc *service.Service) *chi.Mux {
+func NewRouter(ctx context.Context, svc *service.Service) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(middleware.Recoverer)
@@ -19,6 +20,6 @@ func NewRouter(svc *service.Service) *chi.Mux {
 		r.Post("/", SaveHandler(svc))
 	})
 	router.Post("/api/shorten", ShortenHandler(svc))
-
+	router.Get("/ping", PingHandler(ctx, svc))
 	return router
 }

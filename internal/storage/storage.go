@@ -1,11 +1,14 @@
 package storage
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"shortener/internal/config"
 	"shortener/internal/logger"
+	"shortener/internal/storage/postgres"
 )
 
 type inMemory struct {
@@ -19,9 +22,43 @@ type inFile struct {
 	filePath string
 }
 
+type inDatabase struct {
+	DB *postgres.DB
+}
+
 type URLStorage interface {
 	Get(shortLink string) (string, bool)
 	Save(shortLink, longLink string)
+}
+
+type URLRow struct {
+	ID    int    `json:"id"`
+	Short string `json:"short"`
+	Long  string `json:"long"`
+}
+
+func (i *inDatabase) Get(shortLink string) (string, bool) {
+	const stmt = `SELECT * FROM urls WHERE short = $1`
+	ctx := context.Background()
+
+	//var longLink string
+	var row URLRow
+	err := i.DB.Pool.QueryRow(ctx, stmt, shortLink).Scan(&row)
+	if err != nil {
+		return "", false // TODO: переписать интерфейс и методы на возвращение error
+	}
+	return row.Long, true
+
+}
+
+func (i *inDatabase) Save(shortLink, longLink string) {
+	ctx := context.Background()
+	const stmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
+	res, err := i.DB.Pool.Exec(ctx, stmt, shortLink, longLink)
+	if err != nil {
+		logger.Err("failed to insert data", err)
+	}
+	fmt.Println(res.String())
 }
 
 func (s *inMemory) Get(shortLink string) (string, bool) {
@@ -63,7 +100,18 @@ func (s *inFile) restore() error {
 	return nil
 }
 
-func NewStorage(cfg *config.Config) (URLStorage, error) {
+func NewStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
+	if cfg.Service.DatabaseDSN != "" {
+		db, err := postgres.New(ctx, cfg.Service.DatabaseDSN)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create database storage: %w", err)
+		}
+		slog.Info("using database storage")
+		return &inDatabase{
+			DB: db,
+		}, nil
+	}
+
 	if cfg.Service.FileStoragePath == "" {
 		return &inMemory{
 			urls: make(map[string]string),

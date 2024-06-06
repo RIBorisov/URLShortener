@@ -17,7 +17,7 @@ func main() {
 	log := logger.Initialize()
 
 	cfg := config.LoadConfig()
-	store, err := storage.NewStorage(cfg)
+	store, err := storage.NewStorage(ctx, cfg)
 	if err != nil {
 		log.Error("failed to load storage", err)
 	}

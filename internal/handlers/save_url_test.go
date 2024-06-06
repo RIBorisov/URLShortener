@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"io"
 	"log"
 	"net/http"
@@ -19,7 +20,8 @@ import (
 
 func TestSaveHandler(t *testing.T) {
 	cfg := config.LoadConfig()
-	s, err := storage.NewStorage(cfg)
+	ctx := context.Background()
+	s, err := storage.NewStorage(ctx, cfg)
 	assert.NoError(t, err)
 	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
 	type want struct {

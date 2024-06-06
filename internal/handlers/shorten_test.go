@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -21,9 +22,9 @@ func TestShortenHandler(t *testing.T) {
 		ct    = "application/json"
 		route = "/api/shorten"
 	)
-
+	ctx := context.Background()
 	cfg := config.LoadConfig()
-	s, err := storage.NewStorage(cfg)
+	s, err := storage.NewStorage(ctx, cfg)
 	assert.NoError(t, err)
 	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
 	type want struct {

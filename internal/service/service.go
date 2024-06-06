@@ -11,7 +11,7 @@ type Service struct {
 	Storage         storage.URLStorage
 	FileStoragePath string
 	BaseURL         string
-	DSN             string
+	DatabaseDSN     string
 }
 
 func (s *Service) SaveURL(long string) string {

@@ -6,12 +6,12 @@ import (
 
 	"shortener/internal/logger"
 	"shortener/internal/service"
-	"shortener/internal/storage/db"
+	"shortener/internal/storage/postgres"
 )
 
 func PingHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		pool, err := db.NewDB(ctx, svc.DSN)
+		pool, err := postgres.New(ctx, svc.DatabaseDSN)
 		if err != nil {
 			logger.Err("failed to get new DB", err)
 			http.Error(w, "", http.StatusInternalServerError)

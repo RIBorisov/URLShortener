@@ -25,7 +25,7 @@ func main() {
 		Storage:         store,
 		BaseURL:         cfg.Service.BaseURL,
 		FileStoragePath: cfg.Service.FileStoragePath,
-		DSN:             cfg.Service.DatabaseDSN,
+		DatabaseDSN:     cfg.Service.DatabaseDSN,
 	}
 
 	r := handlers.NewRouter(ctx, svc)

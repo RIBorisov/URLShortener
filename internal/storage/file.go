@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"shortener/internal/logger"
 )
@@ -70,7 +71,7 @@ func ReadFileStorage(filename string) (map[string]string, error) {
 
 func AppendToFile(filename, short, long string, uuid uint64) error {
 	urlRecord := URLRecord{
-		UUID:        fmt.Sprintf("%d", uuid+1),
+		UUID:        strconv.FormatUint(uuid+1, 10),
 		ShortURL:    short,
 		OriginalURL: long,
 	}

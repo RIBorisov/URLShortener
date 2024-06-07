@@ -19,7 +19,7 @@ func main() {
 	cfg := config.LoadConfig()
 	store, err := storage.NewStorage(ctx, cfg)
 	if err != nil {
-		log.Error("failed to load storage", err)
+		logger.Err("failed to load storage", err)
 	}
 	svc := &service.Service{
 		Storage:         store,
@@ -41,7 +41,7 @@ func main() {
 		slog.String("baseURL", cfg.Service.BaseURL),
 		slog.String("fileStoragePath", cfg.Service.FileStoragePath),
 	)
-	if err := srv.ListenAndServe(); err != nil {
-		log.Error("failed to start server: %v", err)
+	if err = srv.ListenAndServe(); err != nil {
+		logger.Err("failed to start server", err)
 	}
 }

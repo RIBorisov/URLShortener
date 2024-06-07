@@ -32,23 +32,21 @@ type URLStorage interface {
 }
 
 type URLRow struct {
-	ID    int    `json:"id"`
 	Short string `json:"short"`
 	Long  string `json:"long"`
+	ID    int    `json:"id"`
 }
 
 func (i *inDatabase) Get(shortLink string) (string, bool) {
 	const stmt = `SELECT * FROM urls WHERE short = $1`
 	ctx := context.Background()
 
-	//var longLink string
 	var row URLRow
 	err := i.DB.Pool.QueryRow(ctx, stmt, shortLink).Scan(&row)
 	if err != nil {
 		return "", false // TODO: переписать интерфейс и методы на возвращение error
 	}
 	return row.Long, true
-
 }
 
 func (i *inDatabase) Save(shortLink, longLink string) {

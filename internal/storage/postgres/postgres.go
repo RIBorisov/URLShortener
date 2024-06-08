@@ -17,11 +17,17 @@ type DB struct {
 }
 
 func initPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
+	const (
+		minConns = 1
+		maxConns = 5
+	)
 	poolCfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse DatabaseDSN: %w", err)
 	}
 	poolCfg.ConnConfig.Tracer = &queryTracer{}
+	poolCfg.MinConns = minConns
+	poolCfg.MaxConns = maxConns
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize a connection pool: %w", err)

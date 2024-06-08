@@ -17,11 +17,12 @@ func main() {
 	log := logger.Initialize()
 
 	cfg := config.LoadConfig()
-	store, err := storage.NewStorage(ctx, cfg)
+	store, err := storage.LoadStorage(ctx, cfg)
 	if err != nil {
 		logger.Err("failed to load storage", err)
 	}
 	svc := &service.Service{
+		Ctx:             ctx,
 		Storage:         store,
 		BaseURL:         cfg.Service.BaseURL,
 		FileStoragePath: cfg.Service.FileStoragePath,

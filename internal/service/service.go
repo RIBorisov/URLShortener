@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 
@@ -8,6 +9,7 @@ import (
 )
 
 type Service struct {
+	Ctx             context.Context
 	Storage         storage.URLStorage
 	FileStoragePath string
 	BaseURL         string
@@ -16,12 +18,12 @@ type Service struct {
 
 func (s *Service) SaveURL(long string) string {
 	short := s.generateUniqueShortLink()
-	s.Storage.Save(short, long)
+	s.Storage.Save(s.Ctx, short, long)
 	return short
 }
 
 func (s *Service) GetURL(short string) (string, error) {
-	long, ok := s.Storage.Get(short)
+	long, ok := s.Storage.Get(s.Ctx, short)
 	if !ok {
 		return "", fmt.Errorf("not found long URL by passed short URL: %s", short)
 	}
@@ -35,7 +37,7 @@ func (s *Service) generateUniqueShortLink() string {
 	// check if the string is unique
 	for {
 		uniqStringCandidate := generateRandomString(length)
-		_, ok := s.Storage.Get(uniqStringCandidate)
+		_, ok := s.Storage.Get(s.Ctx, uniqStringCandidate)
 		if !ok {
 			uniqString = uniqStringCandidate
 			break

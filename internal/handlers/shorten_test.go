@@ -24,7 +24,7 @@ func TestShortenHandler(t *testing.T) {
 	)
 	ctx := context.Background()
 	cfg := config.LoadConfig()
-	s, err := storage.NewStorage(ctx, cfg)
+	s, err := storage.LoadStorage(ctx, cfg)
 	assert.NoError(t, err)
 	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
 	type want struct {

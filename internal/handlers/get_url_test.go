@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -19,12 +20,12 @@ type MockDB struct {
 	mock.Mock
 }
 
-func (m *MockDB) Get(shortLink string) (string, bool) {
+func (m *MockDB) Get(_ context.Context, shortLink string) (string, bool) {
 	args := m.Called(shortLink)
 	return args.String(0), args.Bool(1)
 }
 
-func (m *MockDB) Save(shortLink, longLink string) {
+func (m *MockDB) Save(_ context.Context, shortLink, longLink string) {
 	m.Called(shortLink, longLink)
 }
 

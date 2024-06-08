@@ -27,8 +27,8 @@ type inDatabase struct {
 }
 
 type URLStorage interface {
-	Get(shortLink string) (string, bool)
-	Save(shortLink, longLink string)
+	Get(ctx context.Context, shortLink string) (string, bool)
+	Save(ctx context.Context, shortLink, longLink string)
 }
 
 type URLRow struct {
@@ -37,9 +37,8 @@ type URLRow struct {
 	ID    int    `json:"id"`
 }
 
-func (i *inDatabase) Get(shortLink string) (string, bool) {
+func (i *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
 	const stmt = `SELECT * FROM urls WHERE short = $1`
-	ctx := context.Background()
 
 	var row URLRow
 	err := i.DB.Pool.QueryRow(ctx, stmt, shortLink).Scan(&row)
@@ -49,8 +48,7 @@ func (i *inDatabase) Get(shortLink string) (string, bool) {
 	return row.Long, true
 }
 
-func (i *inDatabase) Save(shortLink, longLink string) {
-	ctx := context.Background()
+func (i *inDatabase) Save(ctx context.Context, shortLink, longLink string) {
 	const stmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
 	res, err := i.DB.Pool.Exec(ctx, stmt, shortLink, longLink)
 	if err != nil {
@@ -59,21 +57,21 @@ func (i *inDatabase) Save(shortLink, longLink string) {
 	fmt.Println(res.String())
 }
 
-func (s *inMemory) Get(shortLink string) (string, bool) {
+func (s *inMemory) Get(_ context.Context, shortLink string) (string, bool) {
 	s.mux.RLock()
 	longLink, ok := s.urls[shortLink]
 	s.mux.RUnlock()
 	return longLink, ok
 }
 
-func (s *inMemory) Save(shortLink, longLink string) {
+func (s *inMemory) Save(_ context.Context, shortLink, longLink string) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	s.urls[shortLink] = longLink
 	s.counter++
 }
 
-func (s *inFile) Save(shortLink, longLink string) {
+func (s *inFile) Save(_ context.Context, shortLink, longLink string) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	s.urls[shortLink] = longLink
@@ -98,7 +96,7 @@ func (s *inFile) restore() error {
 	return nil
 }
 
-func NewStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
+func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 	if cfg.Service.DatabaseDSN != "" {
 		db, err := postgres.New(ctx, cfg.Service.DatabaseDSN)
 		if err != nil {

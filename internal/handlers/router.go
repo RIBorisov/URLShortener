@@ -21,6 +21,11 @@ func NewRouter(ctx context.Context, svc *service.Service) *chi.Mux {
 		r.Post("/", SaveHandler(svc))
 	})
 	router.Post("/api/shorten", ShortenHandler(svc))
+	router.Route("/api/shorten", func(r chi.Router) {
+		r.Post("/", ShortenHandler(svc))
+		r.Post("/batch", BatchHandler(svc))
+	})
+
 	router.Get("/ping", PingHandler(ctx, svc))
 	return router
 }

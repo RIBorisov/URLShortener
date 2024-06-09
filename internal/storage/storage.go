@@ -2,8 +2,11 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgconn"
 	"log/slog"
+	"shortener/internal/models"
 	"sync"
 
 	"shortener/internal/config"
@@ -15,6 +18,7 @@ type inMemory struct {
 	urls    map[string]string
 	mux     *sync.RWMutex
 	counter uint64
+	cfg     *config.Config
 }
 
 type inFile struct {
@@ -23,75 +27,140 @@ type inFile struct {
 }
 
 type inDatabase struct {
-	DB *postgres.DB
+	Pool *postgres.DB
+	cfg  *config.Config
 }
-
 type URLStorage interface {
 	Get(ctx context.Context, shortLink string) (string, bool)
 	Save(ctx context.Context, shortLink, longLink string)
+	BatchSave(ctx context.Context, input models.BatchIn) (models.BatchOut, error)
+	Close() error
 }
 
 type URLRow struct {
+	ID    int    `json:"id"`
 	Short string `json:"short"`
 	Long  string `json:"long"`
-	ID    int    `json:"id"`
 }
 
-func (i *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
+func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
 	const stmt = `SELECT * FROM urls WHERE short = $1`
 
 	var row URLRow
-	err := i.DB.Pool.QueryRow(ctx, stmt, shortLink).Scan(&row)
+	err := d.Pool.QueryRowContext(ctx, stmt, shortLink).Scan(&row.ID, &row.Short, &row.Long)
 	if err != nil {
 		return "", false // TODO: переписать интерфейс и методы на возвращение error
 	}
 	return row.Long, true
 }
 
-func (i *inDatabase) Save(ctx context.Context, shortLink, longLink string) {
+func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) {
 	const stmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
-	res, err := i.DB.Pool.Exec(ctx, stmt, shortLink, longLink)
+	_, err := d.Pool.Pool.Exec(ctx, stmt, shortLink, longLink)
 	if err != nil {
 		logger.Err("failed to insert data", err)
 	}
-	fmt.Println(res.String())
 }
 
-func (s *inMemory) Get(_ context.Context, shortLink string) (string, bool) {
-	s.mux.RLock()
-	longLink, ok := s.urls[shortLink]
-	s.mux.RUnlock()
+func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (models.BatchOut, error) {
+	const stmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
+	tx, err := d.Pool.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer func() {
+		if err = tx.Rollback(); err != nil {
+			logger.Err("failed to rollback transaction", err)
+		}
+	}()
+
+	var result models.BatchOut
+	for _, in := range input {
+		_, err = tx.ExecContext(ctx, stmt, in.CorrelationId, in.OriginalURL)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			// check if pgErr is UniqueViolation
+			if errors.As(err, &pgErr) && pgErr.Message == "23505" {
+				err = tx.Rollback()
+				if err != nil {
+					return nil, fmt.Errorf("failed rollback transaction: %w", err)
+				}
+				return nil, fmt.Errorf("failed to execute row, unique violation: %w", pgErr)
+			}
+			err = tx.Rollback()
+			if err != nil {
+				return nil, fmt.Errorf("failed rollback transaction: %w", err)
+			}
+			return nil, fmt.Errorf("failed to execute row: %w", err)
+		}
+		result = append(result, models.BatchResponse{
+			CorrelationId: in.CorrelationId,
+			ShortURL:      in.CorrelationId,
+		})
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return result, nil
+}
+
+func (m *inMemory) Get(_ context.Context, shortLink string) (string, bool) {
+	m.mux.RLock()
+	longLink, ok := m.urls[shortLink]
+	m.mux.RUnlock()
 	return longLink, ok
 }
 
-func (s *inMemory) Save(_ context.Context, shortLink, longLink string) {
-	s.mux.Lock()
-	defer s.mux.Unlock()
-	s.urls[shortLink] = longLink
-	s.counter++
+func (m *inMemory) Save(_ context.Context, shortLink, longLink string) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	m.urls[shortLink] = longLink
+	m.counter++
 }
 
-func (s *inFile) Save(_ context.Context, shortLink, longLink string) {
-	s.mux.Lock()
-	defer s.mux.Unlock()
-	s.urls[shortLink] = longLink
-	err := AppendToFile(s.filePath, shortLink, longLink, s.counter)
+func (m *inMemory) BatchSave(_ context.Context, input models.BatchIn) (models.BatchOut, error) {
+	var result models.BatchOut
+
+	for _, item := range input {
+		m.mux.Lock()
+		m.urls[item.CorrelationId] = item.OriginalURL
+		m.mux.Unlock()
+		m.counter++
+		result = append(result, models.BatchResponse{
+			CorrelationId: item.CorrelationId,
+			ShortURL:      item.CorrelationId,
+		})
+	}
+	return result, nil
+}
+
+func (f *inFile) Save(_ context.Context, shortLink, longLink string) {
+	f.mux.Lock()
+	defer f.mux.Unlock()
+	f.urls[shortLink] = longLink
+	err := AppendToFile(f.filePath, shortLink, longLink, f.counter)
 	if err != nil {
 		logger.Err("failed append to file", err)
 	}
-	s.counter++
+	f.counter++
 }
 
-func (s *inFile) restore() error {
-	if s.filePath != "" {
-		mapping, err := ReadFileStorage(s.filePath)
+func (f *inFile) BatchSave(_ context.Context, input models.BatchIn) (models.BatchOut, error) {
+
+	return nil, nil
+}
+
+func (f *inFile) restore() error {
+	if f.filePath != "" {
+		mapping, err := ReadFileStorage(f.filePath)
 		if err != nil {
 			return fmt.Errorf("failed to restore from file %w", err)
 		}
-		s.mux.Lock()
-		s.urls = mapping
-		s.counter = uint64(len(mapping))
-		s.mux.Unlock()
+		f.mux.Lock()
+		f.urls = mapping
+		f.counter = uint64(len(mapping))
+		f.mux.Unlock()
 	}
 	return nil
 }
@@ -104,7 +173,7 @@ func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 		}
 		slog.Info("using database storage")
 		return &inDatabase{
-			DB: db,
+			Pool: db,
 		}, nil
 	}
 
@@ -112,6 +181,7 @@ func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 		return &inMemory{
 			urls: make(map[string]string),
 			mux:  &sync.RWMutex{},
+			cfg:  cfg,
 		}, nil
 	}
 	storage := &inFile{
@@ -126,4 +196,16 @@ func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 		return nil, fmt.Errorf("failed to build storage: %w", err)
 	}
 	return storage, nil
+}
+
+func (d *inDatabase) Close() error {
+	return d.Pool.Close()
+}
+
+func (m *inMemory) Close() error {
+	return nil
+}
+
+func (f *inFile) Close() error {
+	return nil
 }

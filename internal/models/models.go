@@ -18,5 +18,6 @@ type BatchResponse struct {
 	ShortURL      string `json:"short_url"`
 }
 
-type BatchIn []map[string]string
-type BatchOut []map[string]string
+type BatchIn []BatchRequest
+
+type BatchOut []BatchResponse

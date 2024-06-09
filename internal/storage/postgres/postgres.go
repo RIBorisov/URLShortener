@@ -5,15 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
-	"shortener/internal/logger"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"log"
 )
 
 type DB struct {
 	Pool *pgxpool.Pool
+	*sql.DB
 }
 
 func initPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
@@ -40,11 +39,11 @@ func New(ctx context.Context, dsn string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open connection with database: %w", err)
 	}
-	defer func() {
-		if err = db.Close(); err != nil {
-			logger.Err("failed to close db", err)
-		}
-	}()
+	//defer func() {
+	//	if err = db.Close(); err != nil {
+	//		logger.Err("failed to close db", err)
+	//	}
+	//}()
 
 	if err = prepareDatabase(ctx, db); err != nil {
 		return nil, fmt.Errorf("failed to prepare database: %w", err)
@@ -53,7 +52,7 @@ func New(ctx context.Context, dsn string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init pool: %w", err)
 	}
-	return &DB{Pool: pool}, nil
+	return &DB{Pool: pool, DB: db}, nil
 }
 
 func prepareDatabase(ctx context.Context, db *sql.DB) error {

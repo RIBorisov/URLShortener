@@ -11,7 +11,7 @@ import (
 
 func ShortenHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req models.Request
+		var req models.ShortenRequest
 		dec := json.NewDecoder(r.Body)
 		if err := dec.Decode(&req); err != nil {
 			logger.Err("failed to decode request body", err)
@@ -25,7 +25,7 @@ func ShortenHandler(svc *service.Service) http.HandlerFunc {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		resp := models.Response{
+		resp := models.ShortenResponse{
 			Result: resultURL,
 		}
 		w.Header().Set("Content-Type", "application/json")

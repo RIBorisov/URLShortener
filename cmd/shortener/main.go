@@ -21,6 +21,11 @@ func main() {
 	if err != nil {
 		logger.Err("failed to load storage", err)
 	}
+	defer func() {
+		if err := store.Close(); err != nil {
+			logger.Err("failed to close the connection", err)
+		}
+	}()
 	svc := &service.Service{
 		Ctx:             ctx,
 		Storage:         store,
@@ -40,7 +45,6 @@ func main() {
 		"server starting...",
 		slog.String("host", cfg.Service.ServerAddress),
 		slog.String("baseURL", cfg.Service.BaseURL),
-		slog.String("fileStoragePath", cfg.Service.FileStoragePath),
 	)
 	if err = srv.ListenAndServe(); err != nil {
 		logger.Err("failed to start server", err)

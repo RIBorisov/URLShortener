@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"shortener/internal/models"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -27,6 +28,10 @@ func (m *MockDB) Get(_ context.Context, shortLink string) (string, bool) {
 
 func (m *MockDB) Save(_ context.Context, shortLink, longLink string) {
 	m.Called(shortLink, longLink)
+}
+
+func (m *MockDB) BatchSave(_ context.Context, input models.BatchIn) (models.BatchOut, error) {
+	return nil, nil
 }
 
 func TestGetHandler(t *testing.T) {

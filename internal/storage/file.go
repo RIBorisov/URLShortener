@@ -103,7 +103,6 @@ func AppendToFile(filename, short, long string, uuid uint64) error {
 
 func BatchAppend(filename, baseURL string, input models.BatchIn, counter uint64) (models.BatchOut, error) {
 	var saved models.BatchOut
-	var data []byte
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file %w", err)
@@ -117,10 +116,10 @@ func BatchAppend(filename, baseURL string, input models.BatchIn, counter uint64)
 	for _, item := range input {
 		var row = URLRecord{
 			UUID:        strconv.FormatUint(counter+1, 10),
-			ShortURL:    item.CorrelationId,
+			ShortURL:    item.CorrelationID,
 			OriginalURL: item.OriginalURL,
 		}
-		data, err = json.Marshal(&row)
+		data, err := json.Marshal(&row)
 		if err != nil {
 			return nil, fmt.Errorf("failed marshal row: %w", err)
 		}
@@ -130,12 +129,12 @@ func BatchAppend(filename, baseURL string, input models.BatchIn, counter uint64)
 			return nil, fmt.Errorf("failed write batch into file: %w", err)
 		}
 		counter++
-		shortURL, err := url.JoinPath(baseURL, "/", item.CorrelationId)
+		shortURL, err := url.JoinPath(baseURL, "/", item.CorrelationID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build short url: %w", err)
 		}
 		saved = append(saved, models.BatchResponse{
-			CorrelationId: item.CorrelationId,
+			CorrelationID: item.CorrelationID,
 			ShortURL:      shortURL,
 		})
 	}

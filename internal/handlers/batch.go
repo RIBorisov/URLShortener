@@ -26,8 +26,18 @@ func BatchHandler(svc *service.Service) http.HandlerFunc {
 				return
 			}
 		}()
+		if len(req) == 0 {
+			http.Error(w, "Empty request batch", http.StatusBadRequest)
+			return
+		}
 
 		saved, err := svc.SaveURLs(svc.Ctx, req)
+		if err != nil {
+			logger.Err("failed to save urls", err)
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		enc := json.NewEncoder(w)
@@ -39,14 +49,3 @@ func BatchHandler(svc *service.Service) http.HandlerFunc {
 		}
 	}
 }
-
-/*
-Все записи о коротких URL сохраняйте в базе данных.
-Не забудьте добавить реализацию для сохранения в файл и в память.
-Стоит помнить, что:
-	нужно соблюдать обратную совместимость;
-	отправлять пустые батчи не нужно;
-	вы умеете сжимать контент по алгоритму gzip;
-	изменение в базе можно выполнять в рамках одной транзакции или одного запроса;
-	необходимо избегать формирования условий для возникновения состояния гонки (race condition).
-*/

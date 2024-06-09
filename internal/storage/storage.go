@@ -4,20 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgconn"
 	"log/slog"
-	"shortener/internal/models"
 	"sync"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"shortener/internal/config"
 	"shortener/internal/logger"
+	"shortener/internal/models"
 	"shortener/internal/storage/postgres"
 )
 
 type inMemory struct {
 	urls    map[string]string
-	mux     *sync.RWMutex
 	counter uint64
+	mux     *sync.RWMutex
 	cfg     *config.Config
 }
 
@@ -28,7 +29,6 @@ type inFile struct {
 
 type inDatabase struct {
 	Pool *postgres.DB
-	cfg  *config.Config
 }
 type URLStorage interface {
 	Get(ctx context.Context, shortLink string) (string, bool)
@@ -38,9 +38,9 @@ type URLStorage interface {
 }
 
 type URLRow struct {
-	ID    int    `json:"id"`
 	Short string `json:"short"`
 	Long  string `json:"long"`
+	ID    int    `json:"id"`
 }
 
 func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
@@ -76,7 +76,7 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 
 	var result models.BatchOut
 	for _, in := range input {
-		_, err = tx.ExecContext(ctx, stmt, in.CorrelationId, in.OriginalURL)
+		_, err = tx.ExecContext(ctx, stmt, in.CorrelationID, in.OriginalURL)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			// check if pgErr is UniqueViolation
@@ -94,8 +94,8 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 			return nil, fmt.Errorf("failed to execute row: %w", err)
 		}
 		result = append(result, models.BatchResponse{
-			CorrelationId: in.CorrelationId,
-			ShortURL:      in.CorrelationId,
+			CorrelationID: in.CorrelationID,
+			ShortURL:      in.CorrelationID,
 		})
 	}
 	if err = tx.Commit(); err != nil {
@@ -124,12 +124,12 @@ func (m *inMemory) BatchSave(_ context.Context, input models.BatchIn) (models.Ba
 
 	for _, item := range input {
 		m.mux.Lock()
-		m.urls[item.CorrelationId] = item.OriginalURL
+		m.urls[item.CorrelationID] = item.OriginalURL
 		m.mux.Unlock()
 		m.counter++
 		result = append(result, models.BatchResponse{
-			CorrelationId: item.CorrelationId,
-			ShortURL:      item.CorrelationId,
+			CorrelationID: item.CorrelationID,
+			ShortURL:      item.CorrelationID,
 		})
 	}
 	return result, nil

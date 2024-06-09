@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net/url"
 	"shortener/internal/models"
 	"shortener/internal/storage"
 )
@@ -32,10 +31,7 @@ func (s *Service) GetURL(short string) (string, error) {
 }
 
 func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest) (models.BatchOut, error) {
-	processed, err := convertData(input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to process input: %w", err)
-	}
+	processed := convertData(input)
 	saved, err := s.Storage.BatchSave(ctx, processed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to batch save urls: %w", err)
@@ -69,25 +65,13 @@ func generateRandomString(length int) string {
 	return string(randomString)
 }
 
-func convertData(input []models.BatchRequest) (models.BatchIn, error) {
+func convertData(input []models.BatchRequest) models.BatchIn {
 	res := make(models.BatchIn, 0)
 	for _, item := range input {
 		res = append(res, models.BatchRequest{
-			CorrelationId: item.CorrelationId,
+			CorrelationID: item.CorrelationID,
 			OriginalURL:   item.OriginalURL,
 		})
-
 	}
-	return res, nil
-}
-
-func prepareItem(baseURL, correlationId string) (models.BatchResponse, error) {
-	shortURL, err := url.JoinPath(baseURL, "/", correlationId)
-	if err != nil {
-		return models.BatchResponse{}, fmt.Errorf("failed to join paths: %w", err)
-	}
-	return models.BatchResponse{
-		CorrelationId: correlationId,
-		ShortURL:      shortURL,
-	}, nil
+	return res
 }

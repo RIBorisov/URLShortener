@@ -1,9 +1,22 @@
 package models
 
-type Request struct {
+type ShortenRequest struct {
 	URL string `json:"url"`
 }
 
-type Response struct {
+type ShortenResponse struct {
 	Result string `json:"result"`
 }
+
+type BatchRequest struct {
+	CorrelationId string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type BatchResponse struct {
+	CorrelationId string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+type BatchIn []map[string]string
+type BatchOut []map[string]string

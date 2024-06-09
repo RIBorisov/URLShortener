@@ -37,19 +37,6 @@ func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest) (mo
 		return nil, fmt.Errorf("failed to process input: %w", err)
 	}
 	saved, err := s.Storage.BatchSave(ctx, processed)
-
-	for i, item := range saved {
-		prepared, err := prepareItem(s.BaseURL, item.CorrelationId)
-		if err != nil {
-			return nil, fmt.Errorf("failed to prepare response URL: %w", err)
-		}
-
-		//resultURL, err := url.JoinPath(s.BaseURL, "/", item.CorrelationId)
-		//if err != nil {
-		//	return nil, fmt.Errorf("failed to join BaseURL and ShortURL: %w", err)
-		//}
-		saved[i].ShortURL = prepared.ShortURL
-	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to batch save urls: %w", err)
 	}

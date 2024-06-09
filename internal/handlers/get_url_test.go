@@ -34,6 +34,10 @@ func (m *MockDB) BatchSave(_ context.Context, input models.BatchIn) (models.Batc
 	return nil, nil
 }
 
+func (m *MockDB) Close() error {
+	return nil
+}
+
 func TestGetHandler(t *testing.T) {
 	cfg := config.LoadConfig()
 

@@ -147,8 +147,14 @@ func (f *inFile) Save(_ context.Context, shortLink, longLink string) {
 }
 
 func (f *inFile) BatchSave(_ context.Context, input models.BatchIn) (models.BatchOut, error) {
-
-	return nil, nil
+	f.mux.Lock()
+	defer f.mux.Unlock()
+	saved, err := BatchAppend(f.filePath, f.cfg.Service.BaseURL, input, f.counter)
+	if err != nil {
+		return nil, fmt.Errorf("failed append rows to file: %w", err)
+	}
+	f.counter += uint64(len(saved))
+	return saved, nil
 }
 
 func (f *inFile) restore() error {
@@ -188,6 +194,7 @@ func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 		inMemory: inMemory{
 			urls: make(map[string]string),
 			mux:  &sync.RWMutex{},
+			cfg:  cfg,
 		},
 		filePath: cfg.Service.FileStoragePath,
 	}

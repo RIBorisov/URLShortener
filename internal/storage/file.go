@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 
 	"shortener/internal/logger"
+	"shortener/internal/models"
 )
 
 type URLRecord struct {
@@ -97,4 +99,46 @@ func AppendToFile(filename, short, long string, uuid uint64) error {
 	}
 
 	return nil
+}
+
+func BatchAppend(filename, baseURL string, input models.BatchIn, counter uint64) (models.BatchOut, error) {
+	var saved models.BatchOut
+	var data []byte
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %w", err)
+	}
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			logger.Err("failed to close file %w", err)
+		}
+	}()
+	for _, item := range input {
+		var row = URLRecord{
+			UUID:        strconv.FormatUint(counter+1, 10),
+			ShortURL:    item.CorrelationId,
+			OriginalURL: item.OriginalURL,
+		}
+		data, err = json.Marshal(&row)
+		if err != nil {
+			return nil, fmt.Errorf("failed marshal row: %w", err)
+		}
+		data = append(data, '\n')
+		_, err = file.Write(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed write batch into file: %w", err)
+		}
+		counter++
+		shortURL, err := url.JoinPath(baseURL, "/", item.CorrelationId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build short url: %w", err)
+		}
+		saved = append(saved, models.BatchResponse{
+			CorrelationId: item.CorrelationId,
+			ShortURL:      shortURL,
+		})
+	}
+
+	return saved, nil
 }

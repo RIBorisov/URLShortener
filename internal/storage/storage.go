@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -29,6 +30,7 @@ type inFile struct {
 
 type inDatabase struct {
 	Pool *postgres.DB
+	cfg  *config.Config
 }
 type URLStorage interface {
 	Get(ctx context.Context, shortLink string) (string, bool)
@@ -93,9 +95,13 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 			}
 			return nil, fmt.Errorf("failed to execute row: %w", err)
 		}
+		shortURL, err := url.JoinPath(d.cfg.Service.BaseURL, "/", in.CorrelationID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to join url: %w", err)
+		}
 		result = append(result, models.BatchResponse{
 			CorrelationID: in.CorrelationID,
-			ShortURL:      in.CorrelationID,
+			ShortURL:      shortURL,
 		})
 	}
 	if err = tx.Commit(); err != nil {
@@ -180,6 +186,7 @@ func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 		slog.Info("using database storage")
 		return &inDatabase{
 			Pool: db,
+			cfg:  cfg,
 		}, nil
 	}
 

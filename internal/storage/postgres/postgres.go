@@ -52,11 +52,14 @@ func New(ctx context.Context, dsn string) (*DB, error) {
 }
 
 func prepareDatabase(ctx context.Context, db *sql.DB) error {
-	const tableStmt = `CREATE TABLE IF NOT EXISTS urls (
+	const (
+		tableStmt = `CREATE TABLE IF NOT EXISTS urls (
     id SERIAL PRIMARY KEY,
     short TEXT NOT NULL UNIQUE,
-    long TEXT NOT NULL UNIQUE
+    long TEXT NOT NULL
 );`
+		idxStmt = `CREATE UNIQUE INDEX IF NOT EXISTS idx_long_url ON urls (long);`
+	)
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin the transaction: %w", err)
@@ -72,6 +75,10 @@ func prepareDatabase(ctx context.Context, db *sql.DB) error {
 	_, err = tx.ExecContext(ctx, tableStmt)
 	if err != nil {
 		return fmt.Errorf("failed to create table: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, idxStmt)
+	if err != nil {
+		return fmt.Errorf("failed to set index on field long: %w", err)
 	}
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit the transaction: %w", err)

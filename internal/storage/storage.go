@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"shortener/internal/config"
@@ -81,8 +82,8 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 		_, err = tx.ExecContext(ctx, stmt, in.CorrelationID, in.OriginalURL)
 		if err != nil {
 			var pgErr *pgconn.PgError
-			// check if pgErr is UniqueViolation
-			if errors.As(err, &pgErr) && pgErr.Message == "23505" {
+
+			if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
 				err = tx.Rollback()
 				if err != nil {
 					return nil, fmt.Errorf("failed rollback transaction: %w", err)

@@ -21,8 +21,9 @@ func ShortenHandler(svc *service.Service) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		short, err := svc.SaveURL(req.URL)
+		w.Header().Set("Content-Type", "application/json")
 
+		short, err := svc.SaveURL(req.URL)
 		if err != nil {
 			var duplicateErr *storage.DuplicateRecordError
 			if errors.As(err, &duplicateErr) {
@@ -33,7 +34,6 @@ func ShortenHandler(svc *service.Service) http.HandlerFunc {
 				return
 			}
 		} else {
-			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 		}
 

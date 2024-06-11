@@ -26,8 +26,9 @@ func (m *MockDB) Get(_ context.Context, shortLink string) (string, bool) {
 	return args.String(0), args.Bool(1)
 }
 
-func (m *MockDB) Save(_ context.Context, shortLink, longLink string) {
+func (m *MockDB) Save(_ context.Context, shortLink, longLink string) error {
 	m.Called(shortLink, longLink)
+	return nil
 }
 
 func (m *MockDB) BatchSave(_ context.Context, input models.BatchIn) (models.BatchOut, error) {

@@ -61,7 +61,7 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 
 	// потратил добрых часов 6 на правильную реализацию, но не взлетело.
 	// Выглядит костыльно, но работает, прошу совета как это исправить/улучшить.
-	const insertStmt = `INSERT INTO urls (short, long) VALUES ($1, $2)-- ON CONFLICT (long) DO NOTHING`
+	const insertStmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
 	const selectStmt = `SELECT short FROM urls WHERE long = $1`
 	var existingShortLink string
 	_, err := d.Pool.Pool.Exec(ctx, insertStmt, shortLink, longLink)

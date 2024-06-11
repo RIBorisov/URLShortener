@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+
 	"shortener/internal/logger"
 	"shortener/internal/service"
+	"shortener/internal/storage"
 )
 
 func SaveHandler(svc *service.Service) http.HandlerFunc {
@@ -17,7 +20,19 @@ func SaveHandler(svc *service.Service) http.HandlerFunc {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		short := svc.SaveURL(string(long))
+		short, err := svc.SaveURL(string(long))
+		if err != nil {
+			var duplicateErr *storage.DuplicateRecordError
+			if errors.As(err, &duplicateErr) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, "", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusCreated)
+		}
 
 		resultURL, err := url.JoinPath(svc.BaseURL, short)
 		if err != nil {
@@ -25,8 +40,6 @@ func SaveHandler(svc *service.Service) http.HandlerFunc {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusCreated)
 		_, err = w.Write([]byte(resultURL))
 		if err != nil {
 			log.Printf("failed to write the full URL response to client: %v", err)

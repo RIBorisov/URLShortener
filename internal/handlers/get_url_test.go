@@ -31,11 +31,15 @@ func (m *MockDB) Save(_ context.Context, shortLink, longLink string) error {
 	return nil
 }
 
-func (m *MockDB) BatchSave(_ context.Context, input models.BatchIn) (models.BatchOut, error) {
+func (m *MockDB) BatchSave(_ context.Context, _ models.BatchIn) (models.BatchOut, error) {
 	return nil, nil
 }
 
 func (m *MockDB) Close() error {
+	return nil
+}
+
+func (m *MockDB) Ping(_ context.Context) error {
 	return nil
 }
 

@@ -38,6 +38,7 @@ type URLStorage interface {
 	Save(ctx context.Context, shortLink, longLink string) error
 	BatchSave(ctx context.Context, input models.BatchIn) (models.BatchOut, error)
 	Close() error
+	Ping(ctx context.Context) error
 }
 
 type URLRow struct {
@@ -250,4 +251,14 @@ func (e *DuplicateRecordError) Error() string {
 }
 func (e *DuplicateRecordError) Unwrap() error {
 	return e.Err
+}
+
+func (d *inDatabase) Ping(ctx context.Context) error {
+	return d.Pool.Pool.Ping(ctx)
+}
+func (f *inFile) Ping(_ context.Context) error {
+	return nil
+}
+func (m *inMemory) Ping(_ context.Context) error {
+	return nil
 }

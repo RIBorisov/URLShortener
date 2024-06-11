@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"net/url"
 	"sync"
@@ -35,7 +36,7 @@ type inDatabase struct {
 }
 type URLStorage interface {
 	Get(ctx context.Context, shortLink string) (string, bool)
-	Save(ctx context.Context, shortLink, longLink string)
+	Save(ctx context.Context, shortLink, longLink string) error
 	BatchSave(ctx context.Context, input models.BatchIn) (models.BatchOut, error)
 	Close() error
 }
@@ -57,12 +58,17 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
 	return row.Long, true
 }
 
-func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) {
-	const stmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
-	_, err := d.Pool.Pool.Exec(ctx, stmt, shortLink, longLink)
+func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error {
+	const stmt = `INSERT INTO urls (short, long) VALUES ($1, $2) ON CONFLICT (long) DO NOTHING RETURNING short`
+	var existingShortLink string
+	err := d.Pool.Pool.QueryRow(ctx, stmt, shortLink, longLink).Scan(&existingShortLink)
 	if err != nil {
-		logger.Err("failed to insert data", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return &DuplicateRecordError{}
+		}
+		return fmt.Errorf("failed to execute row: %w", err)
 	}
+	return nil
 }
 
 func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (models.BatchOut, error) {
@@ -119,11 +125,12 @@ func (m *inMemory) Get(_ context.Context, shortLink string) (string, bool) {
 	return longLink, ok
 }
 
-func (m *inMemory) Save(_ context.Context, shortLink, longLink string) {
+func (m *inMemory) Save(_ context.Context, shortLink, longLink string) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	m.urls[shortLink] = longLink
 	m.counter++
+	return nil
 }
 
 func (m *inMemory) BatchSave(_ context.Context, input models.BatchIn) (models.BatchOut, error) {
@@ -142,7 +149,7 @@ func (m *inMemory) BatchSave(_ context.Context, input models.BatchIn) (models.Ba
 	return result, nil
 }
 
-func (f *inFile) Save(_ context.Context, shortLink, longLink string) {
+func (f *inFile) Save(_ context.Context, shortLink, longLink string) error {
 	f.mux.Lock()
 	defer f.mux.Unlock()
 	f.urls[shortLink] = longLink
@@ -151,6 +158,7 @@ func (f *inFile) Save(_ context.Context, shortLink, longLink string) {
 		logger.Err("failed append to file", err)
 	}
 	f.counter++
+	return nil
 }
 
 func (f *inFile) BatchSave(_ context.Context, input models.BatchIn) (models.BatchOut, error) {
@@ -223,4 +231,12 @@ func (m *inMemory) Close() error {
 
 func (f *inFile) Close() error {
 	return nil
+}
+
+type DuplicateRecordError struct {
+	Message string
+}
+
+func (e *DuplicateRecordError) Error() string {
+	return e.Message
 }

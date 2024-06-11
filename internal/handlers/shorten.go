@@ -2,11 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
+
 	"shortener/internal/logger"
 	"shortener/internal/models"
 	"shortener/internal/service"
+	"shortener/internal/storage"
 )
 
 func ShortenHandler(svc *service.Service) http.HandlerFunc {
@@ -18,7 +21,21 @@ func ShortenHandler(svc *service.Service) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		short := svc.SaveURL(req.URL)
+		short, err := svc.SaveURL(req.URL)
+
+		if err != nil {
+			var duplicateErr *storage.DuplicateRecordError
+			if errors.As(err, &duplicateErr) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, "", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+		}
+
 		resultURL, err := url.JoinPath(svc.BaseURL, short)
 		if err != nil {
 			logger.Err("failed to join path to get result URL", err)
@@ -28,8 +45,6 @@ func ShortenHandler(svc *service.Service) http.HandlerFunc {
 		resp := models.ShortenResponse{
 			Result: resultURL,
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
 		enc := json.NewEncoder(w)
 		if err = enc.Encode(resp); err != nil {
 			logger.Err("failed to encode response", err)

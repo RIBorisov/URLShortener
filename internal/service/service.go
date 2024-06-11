@@ -16,10 +16,12 @@ type Service struct {
 	DatabaseDSN     string
 }
 
-func (s *Service) SaveURL(long string) string {
+func (s *Service) SaveURL(long string) (string, error) {
 	short := s.generateUniqueShortLink()
-	s.Storage.Save(s.Ctx, short, long)
-	return short
+	if err := s.Storage.Save(s.Ctx, short, long); err != nil {
+		return short, fmt.Errorf("failed save URL: %w", err)
+	}
+	return short, nil
 }
 
 func (s *Service) GetURL(short string) (string, error) {

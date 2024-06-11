@@ -51,7 +51,7 @@ func TestShortenHandler(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			router := chi.NewRouter()
-			router.Post(route, ShortenHandler(svc))
+			router.Post(route, ShortenHandler(ctx, svc))
 
 			reqBody := strings.NewReader(tc.body)
 			r := httptest.NewRequest(tc.method, route, reqBody)

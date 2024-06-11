@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -9,7 +10,7 @@ import (
 	"shortener/internal/service"
 )
 
-func BatchHandler(svc *service.Service) http.HandlerFunc {
+func BatchHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req []models.BatchRequest
 		// обрабатываем вход
@@ -31,7 +32,7 @@ func BatchHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		saved, err := svc.SaveURLs(svc.Ctx, req)
+		saved, err := svc.SaveURLs(ctx, req)
 		if err != nil {
 			logger.Err("failed to save urls", err)
 			http.Error(w, "", http.StatusInternalServerError)

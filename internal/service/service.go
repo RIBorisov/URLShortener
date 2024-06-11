@@ -9,23 +9,22 @@ import (
 )
 
 type Service struct {
-	Ctx             context.Context
 	Storage         storage.URLStorage
 	FileStoragePath string
 	BaseURL         string
 	DatabaseDSN     string
 }
 
-func (s *Service) SaveURL(long string) (string, error) {
-	short := s.generateUniqueShortLink()
-	if err := s.Storage.Save(s.Ctx, short, long); err != nil {
+func (s *Service) SaveURL(ctx context.Context, long string) (string, error) {
+	short := s.generateUniqueShortLink(ctx)
+	if err := s.Storage.Save(ctx, short, long); err != nil {
 		return short, fmt.Errorf("failed save URL: %w", err)
 	}
 	return short, nil
 }
 
-func (s *Service) GetURL(short string) (string, error) {
-	long, ok := s.Storage.Get(s.Ctx, short)
+func (s *Service) GetURL(ctx context.Context, short string) (string, error) {
+	long, ok := s.Storage.Get(ctx, short)
 	if !ok {
 		return "", fmt.Errorf("not found long URL by passed short URL: %s", short)
 	}
@@ -41,14 +40,14 @@ func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest) (mo
 	return saved, nil
 }
 
-func (s *Service) generateUniqueShortLink() string {
+func (s *Service) generateUniqueShortLink(ctx context.Context) string {
 	const length = 8
 	var uniqString string
 
 	// check if the string is unique
 	for {
 		uniqStringCandidate := generateRandomString(length)
-		_, ok := s.Storage.Get(s.Ctx, uniqStringCandidate)
+		_, ok := s.Storage.Get(ctx, uniqStringCandidate)
 		if !ok {
 			uniqString = uniqStringCandidate
 			break

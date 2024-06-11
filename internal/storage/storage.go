@@ -18,10 +18,10 @@ import (
 )
 
 type inMemory struct {
-	urls    map[string]string
-	counter uint64
 	mux     *sync.RWMutex
 	cfg     *config.Config
+	urls    map[string]string
+	counter uint64
 }
 
 type inFile struct {
@@ -58,7 +58,6 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
 }
 
 func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error {
-
 	// потратил добрых часов 6 на правильную реализацию, но не взлетело.
 	// Выглядит костыльно, но работает, прошу совета как это исправить/улучшить.
 	const insertStmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
@@ -242,8 +241,8 @@ func (f *inFile) Close() error {
 }
 
 type DuplicateRecordError struct {
-	Message string
 	Err     error
+	Message string
 }
 
 func (e *DuplicateRecordError) Error() string {

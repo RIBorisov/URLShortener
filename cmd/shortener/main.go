@@ -27,7 +27,6 @@ func main() {
 		}
 	}()
 	svc := &service.Service{
-		Ctx:             ctx,
 		Storage:         store,
 		BaseURL:         cfg.Service.BaseURL,
 		FileStoragePath: cfg.Service.FileStoragePath,

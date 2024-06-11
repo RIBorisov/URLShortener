@@ -17,13 +17,12 @@ func NewRouter(ctx context.Context, svc *service.Service) *chi.Mux {
 	router.Use(mw.GzipMiddleware)
 	router.Use(mw.Logger)
 	router.Route("/", func(r chi.Router) {
-		r.Get("/{id}", GetHandler(svc))
-		r.Post("/", SaveHandler(svc))
+		r.Get("/{id}", GetHandler(ctx, svc))
+		r.Post("/", SaveHandler(ctx, svc))
 	})
-	router.Post("/api/shorten", ShortenHandler(svc))
 	router.Route("/api/shorten", func(r chi.Router) {
-		r.Post("/", ShortenHandler(svc))
-		r.Post("/batch", BatchHandler(svc))
+		r.Post("/", ShortenHandler(ctx, svc))
+		r.Post("/batch", BatchHandler(ctx, svc))
 	})
 
 	router.Get("/ping", PingHandler(ctx, svc))

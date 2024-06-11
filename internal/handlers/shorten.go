@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 	"shortener/internal/storage"
 )
 
-func ShortenHandler(svc *service.Service) http.HandlerFunc {
+func ShortenHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req models.ShortenRequest
 		dec := json.NewDecoder(r.Body)
@@ -23,7 +24,7 @@ func ShortenHandler(svc *service.Service) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 
-		short, err := svc.SaveURL(req.URL)
+		short, err := svc.SaveURL(ctx, req.URL)
 		if err != nil {
 			var duplicateErr *storage.DuplicateRecordError
 			if errors.As(err, &duplicateErr) {

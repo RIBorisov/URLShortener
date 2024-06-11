@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log"
@@ -12,7 +13,7 @@ import (
 	"shortener/internal/storage"
 )
 
-func SaveHandler(svc *service.Service) http.HandlerFunc {
+func SaveHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		long, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -20,7 +21,7 @@ func SaveHandler(svc *service.Service) http.HandlerFunc {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		short, err := svc.SaveURL(string(long))
+		short, err := svc.SaveURL(ctx, string(long))
 		if err != nil {
 			var duplicateErr *storage.DuplicateRecordError
 			if errors.As(err, &duplicateErr) {

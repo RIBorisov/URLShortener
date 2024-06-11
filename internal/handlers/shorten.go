@@ -27,6 +27,7 @@ func ShortenHandler(svc *service.Service) http.HandlerFunc {
 			var duplicateErr *storage.DuplicateRecordError
 			if errors.As(err, &duplicateErr) {
 				w.WriteHeader(http.StatusConflict)
+				short = duplicateErr.Message
 			} else {
 				http.Error(w, "", http.StatusInternalServerError)
 				return

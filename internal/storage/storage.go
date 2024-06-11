@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"net/url"
 	"sync"
@@ -59,12 +58,21 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
 }
 
 func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error {
-	const stmt = `INSERT INTO urls (short, long) VALUES ($1, $2) ON CONFLICT (long) DO NOTHING RETURNING short`
+
+	// потратил добрых часов 6 на правильную реализацию, но не взлетело.
+	// Выглядит костыльно, но работает, прошу совета как это исправить/улучшить.
+	const insertStmt = `INSERT INTO urls (short, long) VALUES ($1, $2)-- ON CONFLICT (long) DO NOTHING`
+	const selectStmt = `SELECT short FROM urls WHERE long = $1`
 	var existingShortLink string
-	err := d.Pool.Pool.QueryRow(ctx, stmt, shortLink, longLink).Scan(&existingShortLink)
+	_, err := d.Pool.Pool.Exec(ctx, insertStmt, shortLink, longLink)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return &DuplicateRecordError{}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+			selectErr := d.Pool.Pool.QueryRow(ctx, selectStmt, longLink).Scan(&existingShortLink)
+			if selectErr != nil {
+				return fmt.Errorf("failed to select row: %w", selectErr)
+			}
+			return &DuplicateRecordError{Message: existingShortLink, Err: err}
 		}
 		return fmt.Errorf("failed to execute row: %w", err)
 	}
@@ -235,8 +243,12 @@ func (f *inFile) Close() error {
 
 type DuplicateRecordError struct {
 	Message string
+	Err     error
 }
 
 func (e *DuplicateRecordError) Error() string {
 	return e.Message
+}
+func (e *DuplicateRecordError) Unwrap() error {
+	return e.Err
 }

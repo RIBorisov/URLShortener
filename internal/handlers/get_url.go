@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 	"shortener/internal/logger"
@@ -11,8 +10,9 @@ import (
 	"shortener/internal/service"
 )
 
-func GetHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
+func GetHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 		short := chi.URLParam(r, "id")
 		long, err := svc.GetURL(ctx, short)
 		if err != nil {

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+	"shortener/internal/logger"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -67,7 +67,7 @@ func prepareDatabase(ctx context.Context, db *sql.DB) error {
 	defer func() {
 		if err := tx.Rollback(); err != nil {
 			if !errors.Is(err, sql.ErrTxDone) {
-				log.Printf("failed to rollback the transaction: %v", err)
+				logger.Err("failed to rollback the transaction", err)
 			}
 		}
 	}()

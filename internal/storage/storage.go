@@ -18,7 +18,7 @@ import (
 )
 
 type inMemory struct {
-	mux     *sync.RWMutex
+	mux     *sync.Mutex
 	cfg     *config.Config
 	urls    map[string]string
 	counter uint64
@@ -127,9 +127,9 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 }
 
 func (m *inMemory) Get(_ context.Context, shortLink string) (string, bool) {
-	m.mux.RLock()
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	longLink, ok := m.urls[shortLink]
-	m.mux.RUnlock()
 	return longLink, ok
 }
 
@@ -187,9 +187,9 @@ func (f *inFile) restore() error {
 			return fmt.Errorf("failed to restore from file %w", err)
 		}
 		f.mux.Lock()
+		defer f.mux.Unlock()
 		f.urls = mapping
 		f.counter = uint64(len(mapping))
-		f.mux.Unlock()
 	}
 	return nil
 }
@@ -210,14 +210,14 @@ func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 	if cfg.Service.FileStoragePath == "" {
 		return &inMemory{
 			urls: make(map[string]string),
-			mux:  &sync.RWMutex{},
+			mux:  &sync.Mutex{},
 			cfg:  cfg,
 		}, nil
 	}
 	storage := &inFile{
 		inMemory: inMemory{
 			urls: make(map[string]string),
-			mux:  &sync.RWMutex{},
+			mux:  &sync.Mutex{},
 			cfg:  cfg,
 		},
 		filePath: cfg.Service.FileStoragePath,

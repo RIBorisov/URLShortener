@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -10,10 +9,11 @@ import (
 	"shortener/internal/service"
 )
 
-func BatchHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
+func BatchHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req []models.BatchRequest
-		// обрабатываем вход
+
+		ctx := r.Context()
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&req); err != nil {
 			logger.Err("failed to decode request body", err)

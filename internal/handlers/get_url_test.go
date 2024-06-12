@@ -45,7 +45,6 @@ func (m *MockDB) Ping(_ context.Context) error {
 
 func TestGetHandler(t *testing.T) {
 	cfg := config.LoadConfig()
-	ctx := context.Background()
 
 	mockedDB := &MockDB{}
 	svc := &service.Service{Storage: mockedDB, BaseURL: cfg.Service.BaseURL}
@@ -102,7 +101,7 @@ func TestGetHandler(t *testing.T) {
 			mockedDB.On("Get", tt.route).Return(tt.longURL, tt.want.success)
 
 			router := chi.NewRouter()
-			router.Get("/{id}", GetHandler(ctx, svc))
+			router.Get("/{id}", GetHandler(svc))
 			r := httptest.NewRequest(tt.method, "/"+tt.route, http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, r)

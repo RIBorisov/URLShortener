@@ -33,7 +33,7 @@ func main() {
 		DatabaseDSN:     cfg.Service.DatabaseDSN,
 	}
 
-	r := handlers.NewRouter(ctx, svc)
+	r := handlers.NewRouter(svc)
 
 	srv := &http.Server{
 		Addr:    cfg.Service.ServerAddress,

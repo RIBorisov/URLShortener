@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -13,9 +12,10 @@ import (
 	"shortener/internal/storage"
 )
 
-func ShortenHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
+func ShortenHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req models.ShortenRequest
+		ctx := r.Context()
 		dec := json.NewDecoder(r.Body)
 		if err := dec.Decode(&req); err != nil {
 			logger.Err("failed to decode request body", err)
@@ -31,6 +31,7 @@ func ShortenHandler(ctx context.Context, svc *service.Service) http.HandlerFunc 
 				w.WriteHeader(http.StatusConflict)
 				short = duplicateErr.Message
 			} else {
+				logger.Err("failed to save url", err)
 				http.Error(w, "", http.StatusInternalServerError)
 				return
 			}

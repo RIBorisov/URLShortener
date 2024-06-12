@@ -1,10 +1,8 @@
 package handlers
 
 import (
-	"context"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 
@@ -13,8 +11,9 @@ import (
 	"shortener/internal/storage"
 )
 
-func SaveHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
+func SaveHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 		long, err := io.ReadAll(r.Body)
 		if err != nil {
 			logger.Err("failed to read body", err)
@@ -28,6 +27,7 @@ func SaveHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
 				w.WriteHeader(http.StatusConflict)
 				short = duplicateErr.Message
 			} else {
+				logger.Err("failed to save url", err)
 				http.Error(w, "", http.StatusInternalServerError)
 				return
 			}
@@ -38,13 +38,13 @@ func SaveHandler(ctx context.Context, svc *service.Service) http.HandlerFunc {
 
 		resultURL, err := url.JoinPath(svc.BaseURL, short)
 		if err != nil {
-			log.Printf("failed to join path to get result URL: %v", err)
+			logger.Err("failed to join path to get result URL", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 		_, err = w.Write([]byte(resultURL))
 		if err != nil {
-			log.Printf("failed to write the full URL response to client: %v", err)
+			logger.Err("failed to write the full URL response to client", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}

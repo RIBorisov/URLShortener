@@ -3,9 +3,9 @@ package handlers
 import (
 	"context"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
+	"shortener/internal/logger"
 	"strings"
 	"testing"
 
@@ -57,7 +57,7 @@ func TestSaveHandler(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			router := chi.NewRouter()
-			router.Post("/", SaveHandler(ctx, svc))
+			router.Post("/", SaveHandler(svc))
 
 			reqBody := strings.NewReader(tt.body)
 			r := httptest.NewRequest(tt.method, tt.route, reqBody)
@@ -66,10 +66,10 @@ func TestSaveHandler(t *testing.T) {
 			res := w.Result()
 			resBody, err := io.ReadAll(res.Body)
 			if err != nil {
-				log.Printf("error when reading response body")
+				logger.Err("error when reading response body", err)
 			}
 			if err = res.Body.Close(); err != nil {
-				log.Printf("error when closing response body")
+				logger.Err("error when closing response body", err)
 			}
 			require.NoError(t, err)
 			assert.NotEmpty(t, resBody)

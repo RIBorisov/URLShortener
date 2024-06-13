@@ -94,6 +94,11 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 	if err != nil {
 		return nil, fmt.Errorf("failed to begion conn tx: %w", err)
 	}
+	defer func() {
+		if err = tx.Rollback(ctx); err != nil {
+			logger.Err("failed to rollback transaction", err)
+		}
+	}()
 
 	// создаем и наполняем batch
 	batch := pgx.Batch{}

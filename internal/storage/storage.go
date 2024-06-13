@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"net/url"
 	"sync"
@@ -67,7 +68,7 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 	_, err := d.Pool.Pool.Exec(ctx, insertStmt, shortLink, longLink)
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
 			selectErr := d.Pool.Pool.QueryRow(ctx, selectStmt, longLink).Scan(&existingShortLink)
 			if selectErr != nil {
 				return fmt.Errorf("failed to select row: %w", selectErr)
@@ -80,50 +81,62 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 }
 
 func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (models.BatchOut, error) {
-	const stmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
-	tx, err := d.Pool.BeginTx(ctx, nil)
+	const stmt = `INSERT INTO urls (short, long) VALUES (@correlationID, @originalURL)`
+
+	// получаем connection через pool
+	conn, err := d.Pool.Pool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %w", err)
+		return nil, fmt.Errorf("failed to acquire connectio: %w", err)
 	}
-	defer func() {
-		if err = tx.Rollback(); err != nil {
+
+	// стартуем tx через connection
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
+	if err != nil {
+		return nil, fmt.Errorf("failed to begion conn tx: %w", err)
+	}
+
+	// создаем и наполняем batch
+	batch := pgx.Batch{}
+	for _, in := range input {
+		args := pgx.NamedArgs{
+			"correlationID": in.CorrelationID,
+			"originalURL":   in.OriginalURL,
+		}
+		batch.Queue(stmt, args)
+	}
+
+	// отдаем в транзакцию и исполняем батчевый запрос
+	// batchResults нельзя закрывать в defer т.к. он должен закрыться до(!) закрытия connection и tx.Commit
+	batchResults := tx.SendBatch(ctx, &batch)
+	_, batchErr := batchResults.Exec()
+
+	if batchErr != nil {
+		if err = tx.Rollback(ctx); err != nil {
 			logger.Err("failed to rollback transaction", err)
 		}
-	}()
+		return nil, fmt.Errorf("batch res exec: %w", err)
+	}
 
-	var result models.BatchOut
+	// закрываем тут т.к. нужно дальше коммитить транзакцию
+	if err = batchResults.Close(); err != nil {
+		logger.Err("failed to close connection results", err)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	var resp models.BatchOut
 	for _, in := range input {
-		_, err = tx.ExecContext(ctx, stmt, in.CorrelationID, in.OriginalURL)
-		if err != nil {
-			var pgErr *pgconn.PgError
-
-			if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
-				err = tx.Rollback()
-				if err != nil {
-					return nil, fmt.Errorf("failed rollback transaction: %w", err)
-				}
-				return nil, fmt.Errorf("failed to execute row, unique violation: %w", pgErr)
-			}
-			err = tx.Rollback()
-			if err != nil {
-				return nil, fmt.Errorf("failed rollback transaction: %w", err)
-			}
-			return nil, fmt.Errorf("failed to execute row: %w", err)
-		}
 		shortURL, err := url.JoinPath(d.cfg.Service.BaseURL, "/", in.CorrelationID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to join url: %w", err)
 		}
-		result = append(result, models.BatchResponse{
+		resp = append(resp, models.BatchResponse{
 			CorrelationID: in.CorrelationID,
 			ShortURL:      shortURL,
 		})
 	}
-	if err = tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
-	}
 
-	return result, nil
+	return resp, nil
 }
 
 func (m *inMemory) Get(_ context.Context, shortLink string) (string, bool) {

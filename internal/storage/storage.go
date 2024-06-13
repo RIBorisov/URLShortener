@@ -31,7 +31,7 @@ type inFile struct {
 }
 
 type inDatabase struct {
-	Pool *postgres.DB
+	Pool *postgres.DBPool
 	cfg  *config.Config
 }
 type URLStorage interface {
@@ -52,7 +52,7 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
 	const stmt = `SELECT * FROM urls WHERE short = $1`
 
 	var row URLRow
-	err := d.Pool.QueryRowContext(ctx, stmt, shortLink).Scan(&row.ID, &row.Short, &row.Long)
+	err := d.Pool.QueryRow(ctx, stmt, shortLink).Scan(&row.ID, &row.Short, &row.Long)
 	if err != nil {
 		return "", false // TODO: переписать интерфейс и методы на возвращение error
 	}
@@ -65,7 +65,7 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 	const insertStmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
 	const selectStmt = `SELECT short FROM urls WHERE long = $1`
 	var existingShortLink string
-	_, err := d.Pool.Pool.Exec(ctx, insertStmt, shortLink, longLink)
+	_, err := d.Pool.Exec(ctx, insertStmt, shortLink, longLink)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -84,7 +84,7 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 	const stmt = `INSERT INTO urls (short, long) VALUES (@correlationID, @originalURL)`
 
 	// получаем connection через pool
-	conn, err := d.Pool.Pool.Acquire(ctx)
+	conn, err := d.Pool.Acquire(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to acquire connectio: %w", err)
 	}
@@ -243,7 +243,8 @@ func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 }
 
 func (d *inDatabase) Close() error {
-	return d.Pool.Close()
+	d.Pool.Close()
+	return nil
 }
 
 func (m *inMemory) Close() error {

@@ -11,9 +11,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-type DB struct {
-	Pool *pgxpool.Pool
-	*sql.DB
+type DBPool struct {
+	*pgxpool.Pool
 }
 
 func initPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
@@ -35,7 +34,7 @@ func initPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-func New(ctx context.Context, dsn string) (*DB, error) {
+func New(ctx context.Context, dsn string) (*DBPool, error) {
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open connection with database: %w", err)
@@ -48,7 +47,7 @@ func New(ctx context.Context, dsn string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init pool: %w", err)
 	}
-	return &DB{Pool: pool, DB: db}, nil
+	return &DBPool{pool}, nil
 }
 
 func prepareDatabase(ctx context.Context, db *sql.DB) error {

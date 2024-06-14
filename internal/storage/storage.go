@@ -62,15 +62,13 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 	const insertStmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
 	const selectStmt = `SELECT short FROM urls WHERE long = $1`
 	var existingShortLink string
-	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
-	if err != nil {
-		return fmt.Errorf("failed to beginx tx: %w", err)
-	}
-	_, err = tx.Exec(ctx, insertStmt, shortLink, longLink)
+	// через транзакцию в этом случае нельзя, т.к. если будет получена ошибка, то
+	// все последующие команды не будут до роллбэк/коммита выплняться. Savepoints использовать - тут оверхед
+	_, err := d.pool.Exec(ctx, insertStmt, shortLink, longLink)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			selectErr := tx.QueryRow(ctx, selectStmt, longLink).Scan(&existingShortLink)
+			selectErr := d.pool.QueryRow(ctx, selectStmt, longLink).Scan(&existingShortLink)
 			if selectErr != nil {
 				return fmt.Errorf("failed to select row: %w", selectErr)
 			}
@@ -78,14 +76,7 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 		}
 		return fmt.Errorf("failed to execute row: %w", err)
 	}
-	if err = tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit tx: %w", err)
-	}
-	defer func() {
-		if err = tx.Rollback(ctx); err != nil {
-			logger.Err("failed to rollback tx", err)
-		}
-	}()
+
 	return nil
 }
 

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"shortener/internal/models"
@@ -24,9 +25,9 @@ func (s *Service) SaveURL(ctx context.Context, long string) (string, error) {
 }
 
 func (s *Service) GetURL(ctx context.Context, short string) (string, error) {
-	long, ok := s.Storage.Get(ctx, short)
-	if !ok {
-		return "", fmt.Errorf("not found long URL by passed short URL: %s", short)
+	long, err := s.Storage.Get(ctx, short)
+	if err != nil {
+		return "", fmt.Errorf("not found long URL by passed short URL: %w", err)
 	}
 	return long, nil
 }
@@ -47,10 +48,13 @@ func (s *Service) generateUniqueShortLink(ctx context.Context) string {
 	// check if the string is unique
 	for {
 		uniqStringCandidate := generateRandomString(length)
-		_, ok := s.Storage.Get(ctx, uniqStringCandidate)
-		if !ok {
-			uniqString = uniqStringCandidate
-			break
+		_, err := s.Storage.Get(ctx, uniqStringCandidate)
+		if err != nil {
+			if errors.Is(err, storage.ErrURLNotFound) {
+				uniqString = uniqStringCandidate
+				break
+			}
+
 		}
 	}
 	return uniqString

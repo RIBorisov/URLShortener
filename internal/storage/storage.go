@@ -34,7 +34,7 @@ type inDatabase struct {
 	cfg *config.Config
 }
 type URLStorage interface {
-	Get(ctx context.Context, shortLink string) (string, bool)
+	Get(ctx context.Context, shortLink string) (string, error)
 	Save(ctx context.Context, shortLink, longLink string) error
 	BatchSave(ctx context.Context, input models.BatchIn) (models.BatchOut, error)
 	Close() error
@@ -47,15 +47,18 @@ type URLRow struct {
 	ID    int    `json:"id"`
 }
 
-func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
+func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, error) {
 	const stmt = `SELECT * FROM urls WHERE short = $1`
 
 	var row URLRow
 	err := d.pool.QueryRow(ctx, stmt, shortLink).Scan(&row.ID, &row.Short, &row.Long)
 	if err != nil {
-		return "", false // TODO: переписать интерфейс и методы на возвращение error
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrURLNotFound
+		}
+		return "", fmt.Errorf("failed get row: %w", err)
 	}
-	return row.Long, true
+	return row.Long, nil
 }
 
 func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error {
@@ -139,11 +142,14 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 	return resp, nil
 }
 
-func (m *inMemory) Get(_ context.Context, shortLink string) (string, bool) {
+func (m *inMemory) Get(_ context.Context, shortLink string) (string, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	longLink, ok := m.urls[shortLink]
-	return longLink, ok
+	if ok {
+		return longLink, nil
+	}
+	return "", ErrURLNotFound
 }
 
 func (m *inMemory) Save(_ context.Context, shortLink, longLink string) error {
@@ -273,3 +279,5 @@ func (f *inFile) Ping(_ context.Context) error {
 func (m *inMemory) Ping(_ context.Context) error {
 	return nil
 }
+
+var ErrURLNotFound = errors.New("url not found")

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"shortener/internal/models"
+	"shortener/internal/storage"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -21,9 +22,9 @@ type MockDB struct {
 	mock.Mock
 }
 
-func (m *MockDB) Get(_ context.Context, shortLink string) (string, bool) {
+func (m *MockDB) Get(_ context.Context, shortLink string) (string, error) {
 	args := m.Called(shortLink)
-	return args.String(0), args.Bool(1)
+	return args.String(0), args.Error(1)
 }
 
 func (m *MockDB) Save(_ context.Context, shortLink, longLink string) error {
@@ -52,7 +53,7 @@ func TestGetHandler(t *testing.T) {
 	type want struct {
 		contentType string
 		statusCode  int
-		success     bool
+		err         error
 	}
 	cases := []struct {
 		name    string
@@ -69,7 +70,7 @@ func TestGetHandler(t *testing.T) {
 			want: want{
 				contentType: `"text/plain; charset=utf-8"`,
 				statusCode:  http.StatusTemporaryRedirect,
-				success:     true,
+				err:         nil,
 			},
 		},
 		{
@@ -80,7 +81,7 @@ func TestGetHandler(t *testing.T) {
 			want: want{
 				contentType: `"text/plain; charset=utf-8"`,
 				statusCode:  http.StatusTemporaryRedirect,
-				success:     true,
+				err:         nil,
 			},
 		},
 		{
@@ -91,14 +92,14 @@ func TestGetHandler(t *testing.T) {
 			want: want{
 				contentType: `"text/plain; charset=utf-8"`,
 				statusCode:  http.StatusBadRequest,
-				success:     false,
+				err:         storage.ErrURLNotFound,
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			mockedDB.On("Save", tt.route, tt.longURL).Return()
-			mockedDB.On("Get", tt.route).Return(tt.longURL, tt.want.success)
+			mockedDB.On("Get", tt.route).Return(tt.longURL, tt.want.err)
 
 			router := chi.NewRouter()
 			router.Get("/{id}", GetHandler(svc))

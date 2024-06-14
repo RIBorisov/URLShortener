@@ -15,7 +15,6 @@ import (
 	"shortener/internal/config"
 	"shortener/internal/logger"
 	"shortener/internal/models"
-	"shortener/internal/storage/postgres"
 )
 
 type inMemory struct {
@@ -31,8 +30,8 @@ type inFile struct {
 }
 
 type inDatabase struct {
-	Pool *postgres.DBPool
-	cfg  *config.Config
+	*DBStore
+	cfg *config.Config
 }
 type URLStorage interface {
 	Get(ctx context.Context, shortLink string) (string, bool)
@@ -52,7 +51,7 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
 	const stmt = `SELECT * FROM urls WHERE short = $1`
 
 	var row URLRow
-	err := d.Pool.QueryRow(ctx, stmt, shortLink).Scan(&row.ID, &row.Short, &row.Long)
+	err := d.pool.QueryRow(ctx, stmt, shortLink).Scan(&row.ID, &row.Short, &row.Long)
 	if err != nil {
 		return "", false // TODO: переписать интерфейс и методы на возвращение error
 	}
@@ -60,16 +59,15 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
 }
 
 func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error {
-	// потратил добрых часов 6 на правильную реализацию, но не взлетело.
-	// Выглядит костыльно, но работает, прошу совета как это исправить/улучшить.
 	const insertStmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
 	const selectStmt = `SELECT short FROM urls WHERE long = $1`
 	var existingShortLink string
-	_, err := d.Pool.Exec(ctx, insertStmt, shortLink, longLink)
+	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
+	_, err = tx.Exec(ctx, insertStmt, shortLink, longLink)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			selectErr := d.Pool.Pool.QueryRow(ctx, selectStmt, longLink).Scan(&existingShortLink)
+			selectErr := tx.QueryRow(ctx, selectStmt, longLink).Scan(&existingShortLink)
 			if selectErr != nil {
 				return fmt.Errorf("failed to select row: %w", selectErr)
 			}
@@ -77,20 +75,18 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 		}
 		return fmt.Errorf("failed to execute row: %w", err)
 	}
+	defer func() {
+		if err = tx.Rollback(ctx); err != nil {
+			logger.Err("failed to rollback tx", err)
+		}
+	}()
 	return nil
 }
 
 func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (models.BatchOut, error) {
 	const stmt = `INSERT INTO urls (short, long) VALUES (@correlationID, @originalURL)`
 
-	// получаем connection через pool
-	conn, err := d.Pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to acquire connectio: %w", err)
-	}
-
-	// стартуем tx через connection
-	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
+	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
 	if err != nil {
 		return nil, fmt.Errorf("failed to begion conn tx: %w", err)
 	}
@@ -100,7 +96,6 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 		}
 	}()
 
-	// создаем и наполняем batch
 	batch := pgx.Batch{}
 	for _, in := range input {
 		args := pgx.NamedArgs{
@@ -116,10 +111,7 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 	_, batchErr := batchResults.Exec()
 
 	if batchErr != nil {
-		if err = tx.Rollback(ctx); err != nil {
-			logger.Err("failed to rollback transaction", err)
-		}
-		return nil, fmt.Errorf("batch res exec: %w", err)
+		return nil, fmt.Errorf("batch res exec: %w", batchErr)
 	}
 
 	// закрываем тут т.к. нужно дальше коммитить транзакцию
@@ -214,15 +206,12 @@ func (f *inFile) restore() error {
 
 func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 	if cfg.Service.DatabaseDSN != "" {
-		db, err := postgres.New(ctx, cfg.Service.DatabaseDSN)
+		db, err := New(ctx, cfg.Service.DatabaseDSN)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create database storage: %w", err)
 		}
 		slog.Info("using database storage")
-		return &inDatabase{
-			Pool: db,
-			cfg:  cfg,
-		}, nil
+		return &inDatabase{db, cfg}, nil
 	}
 
 	if cfg.Service.FileStoragePath == "" {
@@ -248,7 +237,7 @@ func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 }
 
 func (d *inDatabase) Close() error {
-	d.Pool.Close()
+	d.pool.Close()
 	return nil
 }
 
@@ -273,7 +262,7 @@ func (e *DuplicateRecordError) Unwrap() error {
 }
 
 func (d *inDatabase) Ping(ctx context.Context) error {
-	return d.Pool.Pool.Ping(ctx)
+	return d.pool.Ping(ctx)
 }
 func (f *inFile) Ping(_ context.Context) error {
 	return nil

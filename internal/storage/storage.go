@@ -59,8 +59,11 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, bool) {
 }
 
 func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error {
-	const insertStmt = `INSERT INTO urls (short, long) VALUES ($1, $2)`
-	const selectStmt = `SELECT short FROM urls WHERE long = $1`
+	const (
+		longConstraint = "idx_long_url"
+		selectStmt     = `SELECT short FROM urls WHERE long = $1`
+		insertStmt     = `INSERT INTO urls (short, long) VALUES ($1, $2)`
+	)
 	var existingShortLink string
 	// через транзакцию в этом случае нельзя, т.к. если будет получена ошибка, то
 	// все последующие команды не будут до роллбэк/коммита выплняться. Savepoints использовать - тут оверхед
@@ -68,11 +71,14 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			selectErr := d.pool.QueryRow(ctx, selectStmt, longLink).Scan(&existingShortLink)
-			if selectErr != nil {
-				return fmt.Errorf("failed to select row: %w", selectErr)
+			if pgErr.ConstraintName == longConstraint {
+				selectErr := d.pool.QueryRow(ctx, selectStmt, longLink).Scan(&existingShortLink)
+				if selectErr != nil {
+					return fmt.Errorf("failed to select row: %w", selectErr)
+				}
+				return &DuplicateRecordError{Message: existingShortLink, Err: err}
+
 			}
-			return &DuplicateRecordError{Message: existingShortLink, Err: err}
 		}
 		return fmt.Errorf("failed to execute row: %w", err)
 	}

@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"net/url"
 	"sync"
 
 	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"shortener/internal/config"
@@ -63,6 +63,9 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 	const selectStmt = `SELECT short FROM urls WHERE long = $1`
 	var existingShortLink string
 	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
+	if err != nil {
+		return fmt.Errorf("failed to beginx tx: %w", err)
+	}
 	_, err = tx.Exec(ctx, insertStmt, shortLink, longLink)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -74,6 +77,9 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 			return &DuplicateRecordError{Message: existingShortLink, Err: err}
 		}
 		return fmt.Errorf("failed to execute row: %w", err)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit tx: %w", err)
 	}
 	defer func() {
 		if err = tx.Rollback(ctx); err != nil {

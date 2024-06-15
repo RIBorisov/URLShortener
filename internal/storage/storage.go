@@ -36,7 +36,7 @@ type inDatabase struct {
 type URLStorage interface {
 	Get(ctx context.Context, shortLink string) (string, error)
 	Save(ctx context.Context, shortLink, longLink string) error
-	BatchSave(ctx context.Context, input models.BatchIn) (models.BatchOut, error)
+	BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error)
 	Close() error
 	Ping(ctx context.Context) error
 }
@@ -89,8 +89,8 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 	return nil
 }
 
-func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (models.BatchOut, error) {
-	const stmt = `INSERT INTO urls (short, long) VALUES (@correlationID, @originalURL)`
+func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error) {
+	const stmt = `INSERT INTO urls (short, long) VALUES (@shortLink, @longLink)`
 
 	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
 	if err != nil {
@@ -105,8 +105,8 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 	batch := pgx.Batch{}
 	for _, in := range input {
 		args := pgx.NamedArgs{
-			"correlationID": in.CorrelationID,
-			"originalURL":   in.OriginalURL,
+			"shortLink": in.ShortURL,
+			"longLink":  in.OriginalURL,
 		}
 		batch.Queue(stmt, args)
 	}
@@ -127,15 +127,16 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchIn) (model
 	if err = tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
-	var resp models.BatchOut
+	var resp models.BatchArray
 	for _, in := range input {
-		shortURL, err := url.JoinPath(d.cfg.Service.BaseURL, "/", in.CorrelationID)
+		shortURL, err := url.JoinPath(d.cfg.Service.BaseURL, "/", in.ShortURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to join url: %w", err)
 		}
-		resp = append(resp, models.BatchResponse{
+		resp = append(resp, models.Batch{
 			CorrelationID: in.CorrelationID,
 			ShortURL:      shortURL,
+			OriginalURL:   in.OriginalURL,
 		})
 	}
 
@@ -160,17 +161,18 @@ func (m *inMemory) Save(_ context.Context, shortLink, longLink string) error {
 	return nil
 }
 
-func (m *inMemory) BatchSave(_ context.Context, input models.BatchIn) (models.BatchOut, error) {
-	var result models.BatchOut
+func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray) (models.BatchArray, error) {
+	var result models.BatchArray
 
 	for _, item := range input {
 		m.mux.Lock()
 		m.urls[item.CorrelationID] = item.OriginalURL
 		m.mux.Unlock()
 		m.counter++
-		result = append(result, models.BatchResponse{
+		result = append(result, models.Batch{
 			CorrelationID: item.CorrelationID,
 			ShortURL:      item.CorrelationID,
+			OriginalURL:   item.OriginalURL,
 		})
 	}
 	return result, nil
@@ -188,7 +190,7 @@ func (f *inFile) Save(_ context.Context, shortLink, longLink string) error {
 	return nil
 }
 
-func (f *inFile) BatchSave(_ context.Context, input models.BatchIn) (models.BatchOut, error) {
+func (f *inFile) BatchSave(_ context.Context, input models.BatchArray) (models.BatchArray, error) {
 	f.mux.Lock()
 	defer f.mux.Unlock()
 	saved, err := BatchAppend(f.filePath, f.cfg.Service.BaseURL, input, f.counter)

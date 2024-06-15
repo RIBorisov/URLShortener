@@ -101,8 +101,8 @@ func AppendToFile(filename, short, long string, uuid uint64) error {
 	return nil
 }
 
-func BatchAppend(filename, baseURL string, input models.BatchIn, counter uint64) (models.BatchOut, error) {
-	var saved models.BatchOut
+func BatchAppend(filename, baseURL string, input models.BatchArray, counter uint64) (models.BatchArray, error) {
+	var saved models.BatchArray
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file %w", err)
@@ -133,9 +133,10 @@ func BatchAppend(filename, baseURL string, input models.BatchIn, counter uint64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build short url: %w", err)
 		}
-		saved = append(saved, models.BatchResponse{
+		saved = append(saved, models.Batch{
 			CorrelationID: item.CorrelationID,
 			ShortURL:      shortURL,
+			OriginalURL:   item.OriginalURL,
 		})
 	}
 

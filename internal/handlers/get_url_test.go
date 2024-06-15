@@ -32,7 +32,7 @@ func (m *MockDB) Save(_ context.Context, shortLink, longLink string) error {
 	return nil
 }
 
-func (m *MockDB) BatchSave(_ context.Context, _ models.BatchIn) (models.BatchOut, error) {
+func (m *MockDB) BatchSave(_ context.Context, _ models.BatchArray) (models.BatchArray, error) {
 	return nil, nil
 }
 

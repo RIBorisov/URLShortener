@@ -32,13 +32,21 @@ func (s *Service) GetURL(ctx context.Context, short string) (string, error) {
 	return long, nil
 }
 
-func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest) (models.BatchOut, error) {
-	processed := convertData(input)
+func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest) (models.BatchResponseArray, error) {
+	processed := s.convertData(ctx, input)
 	saved, err := s.Storage.BatchSave(ctx, processed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to batch save urls: %w", err)
 	}
-	return saved, nil
+	resp := make(models.BatchResponseArray, 0)
+	for _, svd := range saved {
+		resp = append(resp, models.BatchResponse{
+			CorrelationID: svd.CorrelationID,
+			ShortURL:      svd.ShortURL,
+		})
+	}
+
+	return resp, nil
 }
 
 func (s *Service) generateUniqueShortLink(ctx context.Context) string {
@@ -70,12 +78,14 @@ func generateRandomString(length int) string {
 	return string(randomString)
 }
 
-func convertData(input []models.BatchRequest) models.BatchIn {
-	res := make(models.BatchIn, 0)
+func (s *Service) convertData(ctx context.Context, input []models.BatchRequest) models.BatchArray {
+	res := make(models.BatchArray, 0)
 	for _, item := range input {
-		res = append(res, models.BatchRequest{
+		short := s.generateUniqueShortLink(ctx)
+		res = append(res, models.Batch{
 			CorrelationID: item.CorrelationID,
 			OriginalURL:   item.OriginalURL,
+			ShortURL:      short,
 		})
 	}
 	return res

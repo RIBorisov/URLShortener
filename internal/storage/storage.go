@@ -80,7 +80,6 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 					return fmt.Errorf("failed to select row: %w", selectErr)
 				}
 				return &DuplicateRecordError{Message: existingShortLink, Err: err}
-
 			}
 		}
 		return fmt.Errorf("failed to execute row: %w", err)

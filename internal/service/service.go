@@ -62,7 +62,6 @@ func (s *Service) generateUniqueShortLink(ctx context.Context) string {
 				uniqString = uniqStringCandidate
 				break
 			}
-
 		}
 	}
 	return uniqString

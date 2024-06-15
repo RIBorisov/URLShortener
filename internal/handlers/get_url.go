@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"net/url"
-	"shortener/internal/logger"
 
 	"github.com/go-chi/chi/v5"
 
@@ -16,13 +15,13 @@ func GetHandler(svc *service.Service) http.HandlerFunc {
 		short := chi.URLParam(r, "id")
 		long, err := svc.GetURL(ctx, short)
 		if err != nil {
-			logger.Err("failed to get URL", err)
+			svc.Log.Err("failed to get URL: ", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		origin, err := url.JoinPath(svc.BaseURL, short)
 		if err != nil {
-			logger.Err("failed to join path to get redirect URL", err)
+			svc.Log.Err("failed to join path to get redirect URL: ", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}

@@ -1,25 +1,35 @@
 package middleware
 
 import (
-	"log/slog"
 	"net/http"
+	"shortener/internal/logger"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func Logger(next http.Handler) http.Handler {
+type Base struct {
+	Log *logger.Log
+}
+
+func NewMW(log *logger.Log) *Base {
+	return &Base{
+		Log: log,
+	}
+}
+
+func (b *Base) Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 		defer func() {
-			slog.Info(
+			b.Log.Info(
 				"OK",
-				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
-				slog.Int("status", ww.Status()),
-				slog.Int("size", ww.BytesWritten()),
-				slog.String("duration", time.Since(start).String()),
+				"path", r.Method,
+				"path", r.URL.Path,
+				"status", ww.Status(),
+				"size", ww.BytesWritten(),
+				"duration", time.Since(start).String(),
 			)
 		}()
 		next.ServeHTTP(ww, r)

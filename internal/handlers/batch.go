@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"shortener/internal/logger"
 	"shortener/internal/models"
 	"shortener/internal/service"
 )
@@ -16,13 +15,13 @@ func BatchHandler(svc *service.Service) http.HandlerFunc {
 		ctx := r.Context()
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&req); err != nil {
-			logger.Err("failed to decode request body", err)
+			svc.Log.Err("failed to decode request body: ", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				logger.Err("failed to close request body", err)
+				svc.Log.Err("failed to close request body: ", err)
 				http.Error(w, "", http.StatusInternalServerError)
 				return
 			}
@@ -34,7 +33,7 @@ func BatchHandler(svc *service.Service) http.HandlerFunc {
 
 		saved, err := svc.SaveURLs(ctx, req)
 		if err != nil {
-			logger.Err("failed to save urls", err)
+			svc.Log.Err("failed to save urls: ", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
@@ -44,7 +43,7 @@ func BatchHandler(svc *service.Service) http.HandlerFunc {
 		enc := json.NewEncoder(w)
 		err = enc.Encode(saved)
 		if err != nil {
-			logger.Err("failed to encode response", err)
+			svc.Log.Err("failed to encode response: ", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}

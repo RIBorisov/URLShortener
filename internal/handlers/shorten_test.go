@@ -3,9 +3,9 @@ package handlers
 import (
 	"context"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"shortener/internal/logger"
 	"strings"
 	"testing"
 
@@ -24,9 +24,12 @@ func TestShortenHandler(t *testing.T) {
 	)
 	ctx := context.Background()
 	cfg := config.LoadConfig()
-	s, err := storage.LoadStorage(ctx, cfg)
+	log := &logger.Log{}
+	log.Initialize("INFO")
+	s, err := storage.LoadStorage(ctx, cfg, log)
 	assert.NoError(t, err)
-	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
+
+	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL, Log: log}
 	type want struct {
 		statusCode  int
 		contentType string
@@ -61,7 +64,7 @@ func TestShortenHandler(t *testing.T) {
 			resBody, err := io.ReadAll(res.Body)
 			assert.NoError(t, err)
 			if err = res.Body.Close(); err != nil {
-				slog.Error("failed to close response body")
+				log.Err("failed to close response body: ", err)
 				return
 			}
 			assert.NotEmpty(t, resBody)

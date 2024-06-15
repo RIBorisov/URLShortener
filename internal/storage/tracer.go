@@ -2,18 +2,20 @@ package storage
 
 import (
 	"context"
-	"log/slog"
+	"shortener/internal/logger"
 
 	"github.com/jackc/pgx/v5"
 )
 
-type queryTracer struct{}
+type queryTracer struct {
+	log *logger.Log
+}
 
 func (t *queryTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
-	slog.Info("Running query %s (%v)", data.SQL, data.Args)
+	t.log.Debug("Running query %s (%v)", data.SQL, data.Args)
 	return ctx
 }
 
 func (t *queryTracer) TraceQueryEnd(_ context.Context, _ *pgx.Conn, data pgx.TraceQueryEndData) {
-	slog.Info("CommandTag: %s, (%v)", data.CommandTag.String(), data.CommandTag)
+	t.log.Debug("CommandTag: %s, (%v)", data.CommandTag.String(), data.CommandTag)
 }

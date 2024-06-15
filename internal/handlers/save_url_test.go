@@ -21,7 +21,9 @@ import (
 func TestSaveHandler(t *testing.T) {
 	cfg := config.LoadConfig()
 	ctx := context.Background()
-	s, err := storage.LoadStorage(ctx, cfg)
+	log := &logger.Log{}
+	log.Initialize("INFO")
+	s, err := storage.LoadStorage(ctx, cfg, log)
 	assert.NoError(t, err)
 	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
 	type want struct {
@@ -66,10 +68,10 @@ func TestSaveHandler(t *testing.T) {
 			res := w.Result()
 			resBody, err := io.ReadAll(res.Body)
 			if err != nil {
-				logger.Err("error when reading response body", err)
+				log.Err("error when reading response body: ", err)
 			}
 			if err = res.Body.Close(); err != nil {
-				logger.Err("error when closing response body", err)
+				log.Err("error when closing response body: ", err)
 			}
 			require.NoError(t, err)
 			assert.NotEmpty(t, resBody)

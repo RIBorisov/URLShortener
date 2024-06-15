@@ -71,7 +71,7 @@ func ReadFileStorage(filename string) (map[string]string, error) {
 	return URLs, nil
 }
 
-func AppendToFile(filename, short, long string, uuid uint64) error {
+func AppendToFile(log *logger.Log, filename, short, long string, uuid uint64) error {
 	urlRecord := URLRecord{
 		UUID:        strconv.FormatUint(uuid+1, 10),
 		ShortURL:    short,
@@ -84,7 +84,7 @@ func AppendToFile(filename, short, long string, uuid uint64) error {
 	defer func() {
 		err = file.Close()
 		if err != nil {
-			logger.Err("failed to close file %w", err)
+			log.Err("failed to close file: ", err)
 		}
 	}()
 	data, err := json.Marshal(&urlRecord)
@@ -101,7 +101,13 @@ func AppendToFile(filename, short, long string, uuid uint64) error {
 	return nil
 }
 
-func BatchAppend(filename, baseURL string, input models.BatchArray, counter uint64) (models.BatchArray, error) {
+func BatchAppend(
+	log *logger.Log,
+	filename,
+	baseURL string,
+	input models.BatchArray,
+	counter uint64,
+) (models.BatchArray, error) {
 	var saved models.BatchArray
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -110,7 +116,7 @@ func BatchAppend(filename, baseURL string, input models.BatchArray, counter uint
 	defer func() {
 		err = file.Close()
 		if err != nil {
-			logger.Err("failed to close file %w", err)
+			log.Err("failed to close file: ", err)
 		}
 	}()
 	for _, item := range input {

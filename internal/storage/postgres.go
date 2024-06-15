@@ -5,18 +5,17 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"shortener/internal/logger"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-
-	"shortener/internal/logger"
 )
 
 type DBStore struct {
 	pool *pgxpool.Pool
 }
 
-func initPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
+func initPool(ctx context.Context, log *logger.Log, dsn string) (*pgxpool.Pool, error) {
 	const (
 		minConns = 1
 		maxConns = 5
@@ -25,7 +24,7 @@ func initPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse DatabaseDSN: %w", err)
 	}
-	poolCfg.ConnConfig.Tracer = &queryTracer{}
+	poolCfg.ConnConfig.Tracer = &queryTracer{log: log}
 	poolCfg.MinConns = minConns
 	poolCfg.MaxConns = maxConns
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
@@ -35,20 +34,20 @@ func initPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-func New(ctx context.Context, dsn string) (*DBStore, error) {
-	pool, err := initPool(ctx, dsn)
+func New(ctx context.Context, dsn string, log *logger.Log) (*DBStore, error) {
+	pool, err := initPool(ctx, log, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init pool: %w", err)
 	}
 
-	if err = prepareDatabase(ctx, pool); err != nil {
+	if err = prepareDatabase(ctx, pool, log); err != nil {
 		return nil, fmt.Errorf("failed to prepare database: %w", err)
 	}
 
 	return &DBStore{pool}, nil
 }
 
-func prepareDatabase(ctx context.Context, db *pgxpool.Pool) error {
+func prepareDatabase(ctx context.Context, db *pgxpool.Pool, log *logger.Log) error {
 	const (
 		tableStmt = `CREATE TABLE IF NOT EXISTS urls (
     id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
@@ -62,9 +61,9 @@ func prepareDatabase(ctx context.Context, db *pgxpool.Pool) error {
 		return fmt.Errorf("failed to begin the transaction: %w", err)
 	}
 	defer func() {
-		if err := tx.Rollback(ctx); err != nil {
+		if err = tx.Rollback(ctx); err != nil {
 			if !errors.Is(err, sql.ErrTxDone) {
-				logger.Err("failed to rollback the transaction", err)
+				log.Err("failed to rollback the transaction: ", err)
 			}
 		}
 	}()

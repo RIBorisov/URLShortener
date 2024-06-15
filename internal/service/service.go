@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"shortener/internal/logger"
 	"shortener/internal/models"
 	"shortener/internal/storage"
 )
 
 type Service struct {
+	Log             *logger.Log
 	Storage         storage.URLStorage
 	FileStoragePath string
 	BaseURL         string

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/url"
+	"shortener/internal/logger"
 	"sync"
 
 	"github.com/jackc/pgerrcode"
@@ -13,11 +13,11 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"shortener/internal/config"
-	"shortener/internal/logger"
 	"shortener/internal/models"
 )
 
 type inMemory struct {
+	*logger.Log
 	mux     *sync.Mutex
 	cfg     *config.Config
 	urls    map[string]string
@@ -32,6 +32,7 @@ type inFile struct {
 type inDatabase struct {
 	*DBStore
 	cfg *config.Config
+	log *logger.Log
 }
 type URLStorage interface {
 	Get(ctx context.Context, shortLink string) (string, error)
@@ -97,7 +98,7 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (mo
 	}
 	defer func() {
 		if err = tx.Rollback(ctx); err != nil {
-			logger.Err("failed to rollback transaction", err)
+			d.log.Err("failed to rollback transaction: ", err)
 		}
 	}()
 
@@ -121,7 +122,7 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (mo
 
 	// закрываем тут т.к. нужно дальше коммитить транзакцию
 	if err = batchResults.Close(); err != nil {
-		logger.Err("failed to close connection results", err)
+		return nil, fmt.Errorf("failed to close connection results: %w", err)
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
@@ -181,9 +182,9 @@ func (f *inFile) Save(_ context.Context, shortLink, longLink string) error {
 	f.mux.Lock()
 	defer f.mux.Unlock()
 	f.urls[shortLink] = longLink
-	err := AppendToFile(f.filePath, shortLink, longLink, f.counter)
+	err := AppendToFile(f.Log, f.filePath, shortLink, longLink, f.counter)
 	if err != nil {
-		logger.Err("failed append to file", err)
+		return fmt.Errorf("failed append to file: %w", err)
 	}
 	f.counter++
 	return nil
@@ -192,7 +193,7 @@ func (f *inFile) Save(_ context.Context, shortLink, longLink string) error {
 func (f *inFile) BatchSave(_ context.Context, input models.BatchArray) (models.BatchArray, error) {
 	f.mux.Lock()
 	defer f.mux.Unlock()
-	saved, err := BatchAppend(f.filePath, f.cfg.Service.BaseURL, input, f.counter)
+	saved, err := BatchAppend(f.Log, f.filePath, f.cfg.Service.BaseURL, input, f.counter)
 	if err != nil {
 		return nil, fmt.Errorf("failed append rows to file: %w", err)
 	}
@@ -214,17 +215,18 @@ func (f *inFile) restore() error {
 	return nil
 }
 
-func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
+func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (URLStorage, error) {
 	if cfg.Service.DatabaseDSN != "" {
-		db, err := New(ctx, cfg.Service.DatabaseDSN)
+		db, err := New(ctx, cfg.Service.DatabaseDSN, log)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create database storage: %w", err)
 		}
-		slog.Info("using database storage")
-		return &inDatabase{db, cfg}, nil
+		log.Info("using database storage..")
+		return &inDatabase{db, cfg, log}, nil
 	}
 
 	if cfg.Service.FileStoragePath == "" {
+		log.Info("using memory storage..")
 		return &inMemory{
 			urls: make(map[string]string),
 			mux:  &sync.Mutex{},
@@ -243,6 +245,8 @@ func LoadStorage(ctx context.Context, cfg *config.Config) (URLStorage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to build storage: %w", err)
 	}
+	log.Info("using file storage..")
+
 	return storage, nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"shortener/internal/logger"
+	"shortener/internal/models"
 	"strings"
 	"testing"
 
@@ -26,6 +27,7 @@ func TestSaveHandler(t *testing.T) {
 	s, err := storage.LoadStorage(ctx, cfg, log)
 	assert.NoError(t, err)
 	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
+	user := &models.User{}
 	type want struct {
 		statusCode int
 	}
@@ -59,7 +61,7 @@ func TestSaveHandler(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			router := chi.NewRouter()
-			router.Post("/", SaveHandler(svc))
+			router.Post("/", SaveHandler(svc, user))
 
 			reqBody := strings.NewReader(tt.body)
 			r := httptest.NewRequest(tt.method, tt.route, reqBody)

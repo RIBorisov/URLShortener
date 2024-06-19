@@ -17,6 +17,7 @@ type URLRecord struct {
 	UUID        string `json:"uuid"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+	UserID      string `json:"user_id"`
 }
 
 type Consumer struct {
@@ -51,13 +52,13 @@ func NewConsumer(filename string) (*Consumer, error) {
 	}, nil
 }
 
-func ReadFileStorage(filename string) (map[string]string, error) {
+func ReadFileStorage(filename string) (map[string]urlData, error) {
 	c, err := NewConsumer(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new consumer: %w", err)
 	}
 	var urlRecord URLRecord
-	var URLs = map[string]string{}
+	var URLs = map[string]urlData{}
 
 	for c.reader.Scan() {
 		row := c.reader.Text()
@@ -65,7 +66,7 @@ func ReadFileStorage(filename string) (map[string]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal row: %w", err)
 		}
-		URLs[urlRecord.ShortURL] = urlRecord.OriginalURL
+		URLs[urlRecord.ShortURL] = urlData{ID: urlRecord.UUID, Long: urlRecord.OriginalURL, UserID: urlRecord.UserID}
 	}
 
 	return URLs, nil
@@ -107,6 +108,7 @@ func BatchAppend(
 	baseURL string,
 	input models.BatchArray,
 	counter uint64,
+	user *models.User,
 ) (models.BatchArray, error) {
 	var saved models.BatchArray
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
@@ -124,6 +126,7 @@ func BatchAppend(
 			UUID:        strconv.FormatUint(counter+1, 10),
 			ShortURL:    item.CorrelationID,
 			OriginalURL: item.OriginalURL,
+			UserID:      user.ID,
 		}
 		data, err := json.Marshal(&row)
 		if err != nil {

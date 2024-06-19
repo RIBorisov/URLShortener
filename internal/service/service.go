@@ -18,9 +18,9 @@ type Service struct {
 	DatabaseDSN     string
 }
 
-func (s *Service) SaveURL(ctx context.Context, long string) (string, error) {
+func (s *Service) SaveURL(ctx context.Context, long string, user *models.User) (string, error) {
 	short := s.generateUniqueShortLink(ctx)
-	if err := s.Storage.Save(ctx, short, long); err != nil {
+	if err := s.Storage.Save(ctx, short, long, user); err != nil {
 		return short, fmt.Errorf("failed save URL: %w", err)
 	}
 	return short, nil
@@ -34,9 +34,9 @@ func (s *Service) GetURL(ctx context.Context, short string) (string, error) {
 	return long, nil
 }
 
-func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest) (models.BatchResponseArray, error) {
+func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest, user *models.User) (models.BatchResponseArray, error) {
 	processed := s.convertData(ctx, input)
-	saved, err := s.Storage.BatchSave(ctx, processed)
+	saved, err := s.Storage.BatchSave(ctx, processed, user)
 	if err != nil {
 		return nil, fmt.Errorf("failed to batch save urls: %w", err)
 	}
@@ -69,16 +69,6 @@ func (s *Service) generateUniqueShortLink(ctx context.Context) string {
 	return uniqString
 }
 
-func generateRandomString(length int) string {
-	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	randomString := make([]byte, length)
-	// generate a random string
-	for i := range randomString {
-		randomString[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(randomString)
-}
-
 func (s *Service) convertData(ctx context.Context, input []models.BatchRequest) models.BatchArray {
 	res := make(models.BatchArray, 0)
 	for _, item := range input {
@@ -90,4 +80,25 @@ func (s *Service) convertData(ctx context.Context, input []models.BatchRequest) 
 		})
 	}
 	return res
+}
+func (s *Service) GetUserURLs(ctx context.Context, user *models.User) (models.UserURLs, error) {
+	data, err := s.Storage.GetByUserID(ctx, user)
+	if err != nil {
+		return nil, fmt.Errorf("failed get urls by userID: %w", err)
+	}
+	userURLs := make(models.UserURLs, len(data))
+	for _, item := range data {
+		userURLs = append(userURLs, models.URL{ShortURL: item.Short, OriginalURL: item.Long})
+	}
+	return userURLs, nil
+}
+
+func generateRandomString(length int) string {
+	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	randomString := make([]byte, length)
+	// generate a random string
+	for i := range randomString {
+		randomString[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(randomString)
 }

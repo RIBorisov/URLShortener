@@ -8,17 +8,17 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-type Base struct {
+type BaseLog struct {
 	Log *logger.Log
 }
 
-func NewMW(log *logger.Log) *Base {
-	return &Base{
+func Log(log *logger.Log) *BaseLog {
+	return &BaseLog{
 		Log: log,
 	}
 }
 
-func (b *Base) Logger(next http.Handler) http.Handler {
+func (b *BaseLog) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)

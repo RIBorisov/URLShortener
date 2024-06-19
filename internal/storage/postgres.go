@@ -52,7 +52,8 @@ func prepareDatabase(ctx context.Context, db *pgxpool.Pool, log *logger.Log) err
 		tableStmt = `CREATE TABLE IF NOT EXISTS urls (
     id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     short VARCHAR(200) NOT NULL UNIQUE,
-    long VARCHAR(200) NOT NULL
+    long VARCHAR(200) NOT NULL, 
+    user_id VARCHAR(200)
 );`
 		idxStmt = `CREATE UNIQUE INDEX IF NOT EXISTS idx_long_url ON urls (long);`
 	)

@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"shortener/internal/models"
+	"shortener/internal/storage"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -19,25 +22,38 @@ type MockDB struct {
 	mock.Mock
 }
 
-func (m *MockDB) Get(shortLink string) (string, bool) {
+func (m *MockDB) Get(_ context.Context, shortLink string) (string, error) {
 	args := m.Called(shortLink)
-	return args.String(0), args.Bool(1)
+	return args.String(0), args.Error(1)
 }
 
-func (m *MockDB) Save(shortLink, longLink string) {
+func (m *MockDB) Save(_ context.Context, shortLink, longLink string) error {
 	m.Called(shortLink, longLink)
+	return nil
+}
+
+func (m *MockDB) BatchSave(_ context.Context, _ models.BatchArray) (models.BatchArray, error) {
+	return nil, nil
+}
+
+func (m *MockDB) Close() error {
+	return nil
+}
+
+func (m *MockDB) Ping(_ context.Context) error {
+	return nil
 }
 
 func TestGetHandler(t *testing.T) {
 	cfg := config.LoadConfig()
 
 	mockedDB := &MockDB{}
-	svc := &service.Service{DB: mockedDB, BaseURL: cfg.Service.BaseURL}
+	svc := &service.Service{Storage: mockedDB, BaseURL: cfg.Service.BaseURL}
 
 	type want struct {
 		contentType string
 		statusCode  int
-		success     bool
+		err         error
 	}
 	cases := []struct {
 		name    string
@@ -54,7 +70,7 @@ func TestGetHandler(t *testing.T) {
 			want: want{
 				contentType: `"text/plain; charset=utf-8"`,
 				statusCode:  http.StatusTemporaryRedirect,
-				success:     true,
+				err:         nil,
 			},
 		},
 		{
@@ -65,7 +81,7 @@ func TestGetHandler(t *testing.T) {
 			want: want{
 				contentType: `"text/plain; charset=utf-8"`,
 				statusCode:  http.StatusTemporaryRedirect,
-				success:     true,
+				err:         nil,
 			},
 		},
 		{
@@ -76,14 +92,14 @@ func TestGetHandler(t *testing.T) {
 			want: want{
 				contentType: `"text/plain; charset=utf-8"`,
 				statusCode:  http.StatusBadRequest,
-				success:     false,
+				err:         storage.ErrURLNotFound,
 			},
 		},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			mockedDB.On("Save", tt.route, tt.longURL).Return()
-			mockedDB.On("Get", tt.route).Return(tt.longURL, tt.want.success)
+			mockedDB.On("Get", tt.route).Return(tt.longURL, tt.want.err)
 
 			router := chi.NewRouter()
 			router.Get("/{id}", GetHandler(svc))

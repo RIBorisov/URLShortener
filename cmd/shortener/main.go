@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
-
 	"shortener/internal/config"
 	"shortener/internal/handlers"
 	"shortener/internal/logger"
@@ -12,14 +12,32 @@ import (
 )
 
 func main() {
-	log := logger.Initialize()
-
-	cfg := config.LoadConfig()
-	db, err := storage.NewStorage(cfg)
-	if err != nil {
-		log.Error("failed to load storage", err)
+	log := &logger.Log{}
+	log.Initialize("INFO")
+	ctx := context.Background()
+	if err := initApp(ctx, log); err != nil {
+		log.Fatal("unexpected error occurred when initializing application: ", err)
 	}
-	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL, FileStoragePath: cfg.Service.FileStoragePath}
+}
+
+func initApp(ctx context.Context, log *logger.Log) error {
+	cfg := config.LoadConfig()
+	store, err := storage.LoadStorage(ctx, cfg, log)
+	if err != nil {
+		log.Err("failed to load storage: ", err)
+	}
+	defer func() {
+		if err = store.Close(); err != nil {
+			log.Err("failed to close the connection: ", err)
+		}
+	}()
+	svc := &service.Service{
+		Storage:         store,
+		BaseURL:         cfg.Service.BaseURL,
+		FileStoragePath: cfg.Service.FileStoragePath,
+		DatabaseDSN:     cfg.Service.DatabaseDSN,
+		Log:             log,
+	}
 
 	r := handlers.NewRouter(svc)
 
@@ -27,14 +45,10 @@ func main() {
 		Addr:    cfg.Service.ServerAddress,
 		Handler: r,
 	}
-
 	log.Info(
 		"server starting...",
 		slog.String("host", cfg.Service.ServerAddress),
-		slog.String("baseURL", cfg.Service.BaseURL),
-		slog.String("fileStoragePath", cfg.Service.FileStoragePath),
+		slog.String("BaseURL", cfg.Service.BaseURL),
 	)
-	if err := srv.ListenAndServe(); err != nil {
-		log.Error("failed to start server: %v", err)
-	}
+	return srv.ListenAndServe()
 }

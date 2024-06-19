@@ -1,35 +1,49 @@
 package handlers
 
 import (
+	"errors"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
-	"shortener/internal/logger"
+
 	"shortener/internal/service"
+	"shortener/internal/storage"
 )
 
 func SaveHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 		long, err := io.ReadAll(r.Body)
 		if err != nil {
-			logger.Err("failed to read body", err)
+			svc.Log.Err("failed to read body: ", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		short := svc.SaveURL(string(long))
+		short, err := svc.SaveURL(ctx, string(long))
+		if err != nil {
+			var duplicateErr *storage.DuplicateRecordError
+			if errors.As(err, &duplicateErr) {
+				w.WriteHeader(http.StatusConflict)
+				short = duplicateErr.Message
+			} else {
+				svc.Log.Err("failed to save url: ", err)
+				http.Error(w, "", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusCreated)
+		}
 
 		resultURL, err := url.JoinPath(svc.BaseURL, short)
 		if err != nil {
-			log.Printf("failed to join path to get result URL: %v", err)
+			svc.Log.Err("failed to join path to get result URL: ", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusCreated)
 		_, err = w.Write([]byte(resultURL))
 		if err != nil {
-			log.Printf("failed to write the full URL response to client: %v", err)
+			svc.Log.Err("failed to write the full URL response to client: ", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}

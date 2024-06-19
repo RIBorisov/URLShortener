@@ -2,9 +2,8 @@ package middleware
 
 import (
 	"net/http"
-	"strings"
-
 	"shortener/internal/logger"
+	"strings"
 )
 
 func allowedContentType(header string) bool {
@@ -16,19 +15,31 @@ func allowedContentType(header string) bool {
 	return ok
 }
 
-func GzipMiddleware(next http.Handler) http.Handler {
+type GzipMW struct {
+	Log *logger.Log
+}
+
+func NewGzipMiddleware(log *logger.Log) *GzipMW {
+	return &GzipMW{
+		Log: log,
+	}
+}
+
+func (ng *GzipMW) GzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ow := w
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
-			if allowedContentType(r.Header.Get("Content-Type")) {
+			cT := r.Header.Get("Content-Type")
+			if allowedContentType(cT) {
+				w.Header().Set("Content-Type", cT)
 				cw := newCompressWriter(w)
 				ow = cw
 				defer func() {
 					err := cw.Close()
 					if err != nil {
-						logger.Err("failed to close compress writer", err)
+						ng.Log.Err("failed to close compress writer: ", err)
 						http.Error(w, "", http.StatusInternalServerError)
 						return
 					}
@@ -41,7 +52,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		if sendsGzip {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
-				logger.Err("failed to read compressed body", err)
+				ng.Log.Err("failed to read compressed body: ", err)
 				http.Error(w, "check if gzip data is valid", http.StatusBadRequest)
 				return
 			} else {
@@ -49,7 +60,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 				defer func() {
 					err = cr.Close()
 					if err != nil {
-						logger.Err("failed to close compress reader", err)
+						ng.Log.Err("failed to close compress reader: ", err)
 						http.Error(w, "", http.StatusInternalServerError)
 						return
 					}

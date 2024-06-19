@@ -2,37 +2,54 @@ package handlers
 
 import (
 	"encoding/json"
-	"log/slog"
+	"errors"
 	"net/http"
 	"net/url"
+
 	"shortener/internal/models"
 	"shortener/internal/service"
+	"shortener/internal/storage"
 )
 
 func ShortenHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req models.Request
+		var req models.ShortenRequest
+		ctx := r.Context()
 		dec := json.NewDecoder(r.Body)
 		if err := dec.Decode(&req); err != nil {
-			slog.Error("failed to decode request body", err)
+			svc.Log.Err("failed to decode request body: ", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		short := svc.SaveURL(req.URL)
+		w.Header().Set("Content-Type", "application/json")
+
+		short, err := svc.SaveURL(ctx, req.URL)
+		if err != nil {
+			var duplicateErr *storage.DuplicateRecordError
+			if errors.As(err, &duplicateErr) {
+				w.WriteHeader(http.StatusConflict)
+				short = duplicateErr.Message
+			} else {
+				svc.Log.Err("failed to save url: ", err)
+				http.Error(w, "", http.StatusInternalServerError)
+				return
+			}
+		} else {
+			w.WriteHeader(http.StatusCreated)
+		}
+
 		resultURL, err := url.JoinPath(svc.BaseURL, short)
 		if err != nil {
-			slog.Error("failed to join path to get result URL", err)
+			svc.Log.Err("failed to join path to get result URL: ", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		resp := models.Response{
+		resp := models.ShortenResponse{
 			Result: resultURL,
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
 		enc := json.NewEncoder(w)
 		if err = enc.Encode(resp); err != nil {
-			slog.Error("failed to encode response", err)
+			svc.Log.Err("failed to encode response: ", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}

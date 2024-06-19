@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"shortener/internal/logger"
+	"shortener/internal/models"
 )
 
 type URLRecord struct {
@@ -68,9 +71,9 @@ func ReadFileStorage(filename string) (map[string]string, error) {
 	return URLs, nil
 }
 
-func AppendToFile(filename, short, long string, uuid uint64) error {
+func AppendToFile(log *logger.Log, filename, short, long string, uuid uint64) error {
 	urlRecord := URLRecord{
-		UUID:        fmt.Sprintf("%d", uuid+1),
+		UUID:        strconv.FormatUint(uuid+1, 10),
 		ShortURL:    short,
 		OriginalURL: long,
 	}
@@ -81,7 +84,7 @@ func AppendToFile(filename, short, long string, uuid uint64) error {
 	defer func() {
 		err = file.Close()
 		if err != nil {
-			logger.Err("failed to close file %w", err)
+			log.Err("failed to close file: ", err)
 		}
 	}()
 	data, err := json.Marshal(&urlRecord)
@@ -96,4 +99,52 @@ func AppendToFile(filename, short, long string, uuid uint64) error {
 	}
 
 	return nil
+}
+
+func BatchAppend(
+	log *logger.Log,
+	filename,
+	baseURL string,
+	input models.BatchArray,
+	counter uint64,
+) (models.BatchArray, error) {
+	var saved models.BatchArray
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %w", err)
+	}
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			log.Err("failed to close file: ", err)
+		}
+	}()
+	for _, item := range input {
+		var row = URLRecord{
+			UUID:        strconv.FormatUint(counter+1, 10),
+			ShortURL:    item.CorrelationID,
+			OriginalURL: item.OriginalURL,
+		}
+		data, err := json.Marshal(&row)
+		if err != nil {
+			return nil, fmt.Errorf("failed marshal row: %w", err)
+		}
+		data = append(data, '\n')
+		_, err = file.Write(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed write batch into file: %w", err)
+		}
+		counter++
+		shortURL, err := url.JoinPath(baseURL, "/", item.CorrelationID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build short url: %w", err)
+		}
+		saved = append(saved, models.Batch{
+			CorrelationID: item.CorrelationID,
+			ShortURL:      shortURL,
+			OriginalURL:   item.OriginalURL,
+		})
+	}
+
+	return saved, nil
 }

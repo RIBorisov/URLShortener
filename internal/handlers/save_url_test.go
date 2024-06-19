@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
+	"shortener/internal/logger"
 	"strings"
 	"testing"
 
@@ -19,9 +20,12 @@ import (
 
 func TestSaveHandler(t *testing.T) {
 	cfg := config.LoadConfig()
-	db, err := storage.NewStorage(cfg)
+	ctx := context.Background()
+	log := &logger.Log{}
+	log.Initialize("INFO")
+	s, err := storage.LoadStorage(ctx, cfg, log)
 	assert.NoError(t, err)
-	svc := &service.Service{DB: db, BaseURL: cfg.Service.BaseURL}
+	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
 	type want struct {
 		statusCode int
 	}
@@ -64,10 +68,10 @@ func TestSaveHandler(t *testing.T) {
 			res := w.Result()
 			resBody, err := io.ReadAll(res.Body)
 			if err != nil {
-				log.Printf("error when reading response body")
+				log.Err("error when reading response body: ", err)
 			}
 			if err = res.Body.Close(); err != nil {
-				log.Printf("error when closing response body")
+				log.Err("error when closing response body: ", err)
 			}
 			require.NoError(t, err)
 			assert.NotEmpty(t, resBody)

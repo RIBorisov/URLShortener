@@ -27,3 +27,18 @@ type Batch struct {
 type BatchArray []Batch
 
 type BatchResponseArray []BatchResponse
+
+type URL struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+type UserURLs []URL
+
+type User struct {
+	ID string `json:"user_id"`
+}
+
+type BaseRow struct {
+	Short string `json:"short"`
+	Long  string `json:"long"`
+}

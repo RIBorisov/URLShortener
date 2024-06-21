@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"shortener/internal/logger"
+	"shortener/internal/models"
 	"strings"
 	"testing"
 
@@ -25,6 +26,7 @@ func TestShortenHandler(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.LoadConfig()
 	log := &logger.Log{}
+	user := &models.User{}
 	log.Initialize("INFO")
 	s, err := storage.LoadStorage(ctx, cfg, log)
 	assert.NoError(t, err)
@@ -54,7 +56,7 @@ func TestShortenHandler(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			router := chi.NewRouter()
-			router.Post(route, ShortenHandler(svc))
+			router.Post(route, ShortenHandler(svc, user))
 
 			reqBody := strings.NewReader(tc.body)
 			r := httptest.NewRequest(tc.method, route, reqBody)

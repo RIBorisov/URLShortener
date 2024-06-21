@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"shortener/internal/logger"
 	"sync"
 
 	"github.com/jackc/pgerrcode"
@@ -13,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"shortener/internal/config"
+	"shortener/internal/logger"
 	"shortener/internal/models"
 )
 
@@ -20,7 +20,7 @@ type inMemory struct {
 	*logger.Log
 	mux     *sync.Mutex
 	cfg     *config.Config
-	urls    map[string]string
+	urls    map[string]urlData
 	counter uint64
 }
 
@@ -34,44 +34,72 @@ type inDatabase struct {
 	cfg *config.Config
 	log *logger.Log
 }
+
+type urlData struct {
+	Long   string
+	ID     string
+	Short  string
+	UserID string
+}
+
 type URLStorage interface {
-	Get(ctx context.Context, shortLink string) (string, error)
-	Save(ctx context.Context, shortLink, longLink string) error
-	BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error)
 	Close() error
 	Ping(ctx context.Context) error
+	Get(ctx context.Context, shortLink string) (string, error)
+	Save(ctx context.Context, shortLink, longLink string, user *models.User) error
+	BatchSave(ctx context.Context, input models.BatchArray, user *models.User) (models.BatchArray, error)
+	GetByUserID(ctx context.Context, user *models.User) ([]models.BaseRow, error)
 }
 
 type URLRow struct {
-	Short string `json:"short"`
-	Long  string `json:"long"`
-	ID    int    `json:"id"`
+	models.BaseRow
+	ID int `json:"id"`
+}
+
+func (d *inDatabase) GetByUserID(ctx context.Context, user *models.User) ([]models.BaseRow, error) {
+	const stmt = `SELECT short, long FROM urls WHERE user_id = $1`
+	rows, err := d.pool.Query(ctx, stmt, user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed get urls for user_id = %s: %w", user.ID, err)
+	}
+	var data []models.BaseRow
+	for rows.Next() {
+		var short, long string
+		if err = rows.Scan(&short, &long); err != nil {
+			return nil, fmt.Errorf("failed scan rows into BaseRow: %w", err)
+		}
+		data = append(data, models.BaseRow{
+			Short: short,
+			Long:  long,
+		})
+	}
+	return data, nil
 }
 
 func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, error) {
-	const stmt = `SELECT * FROM urls WHERE short = $1`
+	const stmt = `SELECT long FROM urls WHERE short = $1`
 
-	var row URLRow
-	err := d.pool.QueryRow(ctx, stmt, shortLink).Scan(&row.ID, &row.Short, &row.Long)
+	var row string
+	err := d.pool.QueryRow(ctx, stmt, shortLink).Scan(&row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", ErrURLNotFound
 		}
 		return "", fmt.Errorf("failed get row: %w", err)
 	}
-	return row.Long, nil
+	return row, nil
 }
 
-func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error {
+func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string, user *models.User) error {
 	const (
 		longConstraint = "idx_long_url"
 		selectStmt     = `SELECT short FROM urls WHERE long = $1`
-		insertStmt     = `INSERT INTO urls (short, long) VALUES ($1, $2)`
+		insertStmt     = `INSERT INTO urls (short, long, user_id) VALUES ($1, $2, $3)`
 	)
 	var existingShortLink string
 	// через транзакцию в этом случае нельзя, т.к. если будет получена ошибка, то
-	// все последующие команды не будут до роллбэк/коммита выплняться. Savepoints использовать - тут оверхед
-	_, err := d.pool.Exec(ctx, insertStmt, shortLink, longLink)
+	// все последующие команды не будут до роллбэк/коммита выполняться. Savepoints использовать - тут оверхед
+	_, err := d.pool.Exec(ctx, insertStmt, shortLink, longLink, user.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -89,8 +117,12 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 	return nil
 }
 
-func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error) {
-	const stmt = `INSERT INTO urls (short, long) VALUES (@shortLink, @longLink)`
+func (d *inDatabase) BatchSave(
+	ctx context.Context,
+	input models.BatchArray,
+	user *models.User,
+) (models.BatchArray, error) {
+	const stmt = `INSERT INTO urls (short, long, user_id) VALUES (@short, @long, @user_id)`
 
 	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
 	if err != nil {
@@ -105,8 +137,9 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (mo
 	batch := pgx.Batch{}
 	for _, in := range input {
 		args := pgx.NamedArgs{
-			"shortLink": in.ShortURL,
-			"longLink":  in.OriginalURL,
+			"short":   in.ShortURL,
+			"long":    in.OriginalURL,
+			"user_id": user.ID,
 		}
 		batch.Queue(stmt, args)
 	}
@@ -143,30 +176,48 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (mo
 	return resp, nil
 }
 
+func (m *inMemory) GetByUserID(_ context.Context, user *models.User) ([]models.BaseRow, error) {
+	var data []models.BaseRow
+	for _, u := range m.urls {
+		m.mux.Lock()
+		if user.ID == u.UserID {
+			data = append(data, models.BaseRow{
+				Long:  u.Long,
+				Short: u.Short,
+			})
+		}
+		m.mux.Unlock()
+	}
+	return data, nil
+}
+
 func (m *inMemory) Get(_ context.Context, shortLink string) (string, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	longLink, ok := m.urls[shortLink]
 	if ok {
-		return longLink, nil
+		return longLink.Long, nil
 	}
 	return "", ErrURLNotFound
 }
 
-func (m *inMemory) Save(_ context.Context, shortLink, longLink string) error {
+func (m *inMemory) Save(_ context.Context, shortLink, longLink string, user *models.User) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	m.urls[shortLink] = longLink
+	m.urls[shortLink] = urlData{
+		Long:   longLink,
+		UserID: user.ID,
+	}
 	m.counter++
 	return nil
 }
 
-func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray) (models.BatchArray, error) {
+func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray, user *models.User) (models.BatchArray, error) {
 	var result models.BatchArray
 
 	for _, item := range input {
 		m.mux.Lock()
-		m.urls[item.CorrelationID] = item.OriginalURL
+		m.urls[item.ShortURL] = urlData{Long: item.OriginalURL, ID: item.CorrelationID, UserID: user.ID}
 		m.mux.Unlock()
 		m.counter++
 		result = append(result, models.Batch{
@@ -178,11 +229,11 @@ func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray) (models
 	return result, nil
 }
 
-func (f *inFile) Save(_ context.Context, shortLink, longLink string) error {
+func (f *inFile) Save(_ context.Context, shortLink, longLink string, user *models.User) error {
 	f.mux.Lock()
 	defer f.mux.Unlock()
-	f.urls[shortLink] = longLink
-	err := AppendToFile(f.Log, f.filePath, shortLink, longLink, f.counter)
+	f.urls[shortLink] = urlData{Long: longLink, UserID: user.ID, Short: shortLink}
+	err := AppendToFile(f.Log, f.filePath, shortLink, longLink, f.counter, user)
 	if err != nil {
 		return fmt.Errorf("failed append to file: %w", err)
 	}
@@ -190,10 +241,10 @@ func (f *inFile) Save(_ context.Context, shortLink, longLink string) error {
 	return nil
 }
 
-func (f *inFile) BatchSave(_ context.Context, input models.BatchArray) (models.BatchArray, error) {
+func (f *inFile) BatchSave(_ context.Context, input models.BatchArray, user *models.User) (models.BatchArray, error) {
 	f.mux.Lock()
 	defer f.mux.Unlock()
-	saved, err := BatchAppend(f.Log, f.filePath, f.cfg.Service.BaseURL, input, f.counter)
+	saved, err := BatchAppend(f.Log, f.filePath, f.cfg.Service.BaseURL, input, f.counter, user)
 	if err != nil {
 		return nil, fmt.Errorf("failed append rows to file: %w", err)
 	}
@@ -228,14 +279,14 @@ func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (URLS
 	if cfg.Service.FileStoragePath == "" {
 		log.Info("using memory storage..")
 		return &inMemory{
-			urls: make(map[string]string),
+			urls: make(map[string]urlData),
 			mux:  &sync.Mutex{},
 			cfg:  cfg,
 		}, nil
 	}
 	storage := &inFile{
 		inMemory: inMemory{
-			urls: make(map[string]string),
+			urls: make(map[string]urlData),
 			mux:  &sync.Mutex{},
 			cfg:  cfg,
 		},

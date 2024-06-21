@@ -27,12 +27,16 @@ func (m *MockDB) Get(_ context.Context, shortLink string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockDB) Save(_ context.Context, shortLink, longLink string) error {
+func (m *MockDB) Save(_ context.Context, shortLink, longLink string, _ *models.User) error {
 	m.Called(shortLink, longLink)
 	return nil
 }
 
-func (m *MockDB) BatchSave(_ context.Context, _ models.BatchArray) (models.BatchArray, error) {
+func (m *MockDB) BatchSave(_ context.Context, _ models.BatchArray, _ *models.User) (models.BatchArray, error) {
+	return nil, nil
+}
+
+func (m *MockDB) GetByUserID(_ context.Context, _ *models.User) ([]models.BaseRow, error) {
 	return nil, nil
 }
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"shortener/internal/logger"
 	"sync"
 
 	"github.com/jackc/pgerrcode"
@@ -13,14 +12,14 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"shortener/internal/config"
+	"shortener/internal/logger"
 	"shortener/internal/models"
 )
 
 type inMemory struct {
 	*logger.Log
-	mux *sync.Mutex
-	cfg *config.Config
-	//urls    map[string]string
+	mux     *sync.Mutex
+	cfg     *config.Config
 	urls    map[string]urlData
 	counter uint64
 }
@@ -39,6 +38,7 @@ type inDatabase struct {
 type urlData struct {
 	Long   string
 	ID     string
+	Short  string
 	UserID string
 }
 
@@ -94,12 +94,12 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string, user 
 	const (
 		longConstraint = "idx_long_url"
 		selectStmt     = `SELECT short FROM urls WHERE long = $1`
-		insertStmt     = `INSERT INTO urls (short, long) VALUES ($1, $2)`
+		insertStmt     = `INSERT INTO urls (short, long, user_id) VALUES ($1, $2, $3)`
 	)
 	var existingShortLink string
 	// через транзакцию в этом случае нельзя, т.к. если будет получена ошибка, то
-	// все последующие команды не будут до роллбэк/коммита выплняться. Savepoints использовать - тут оверхед
-	_, err := d.pool.Exec(ctx, insertStmt, shortLink, longLink)
+	// все последующие команды не будут до роллбэк/коммита выполняться. Savepoints использовать - тут оверхед
+	_, err := d.pool.Exec(ctx, insertStmt, shortLink, longLink, user.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -117,8 +117,12 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string, user 
 	return nil
 }
 
-func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray, user *models.User) (models.BatchArray, error) {
-	const stmt = `INSERT INTO urls (short, long) VALUES (@short, @long)`
+func (d *inDatabase) BatchSave(
+	ctx context.Context,
+	input models.BatchArray,
+	user *models.User,
+) (models.BatchArray, error) {
+	const stmt = `INSERT INTO urls (short, long, user_id) VALUES (@short, @long, @user_id)`
 
 	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
 	if err != nil {
@@ -133,8 +137,9 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray, use
 	batch := pgx.Batch{}
 	for _, in := range input {
 		args := pgx.NamedArgs{
-			"short": in.ShortURL,
-			"long":  in.OriginalURL,
+			"short":   in.ShortURL,
+			"long":    in.OriginalURL,
+			"user_id": user.ID,
 		}
 		batch.Queue(stmt, args)
 	}
@@ -173,7 +178,16 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray, use
 
 func (m *inMemory) GetByUserID(_ context.Context, user *models.User) ([]models.BaseRow, error) {
 	var data []models.BaseRow
-
+	for _, u := range m.urls {
+		m.mux.Lock()
+		if user.ID == u.UserID {
+			data = append(data, models.BaseRow{
+				Long:  u.Long,
+				Short: u.Short,
+			})
+		}
+		m.mux.Unlock()
+	}
 	return data, nil
 }
 
@@ -218,8 +232,8 @@ func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray, user *m
 func (f *inFile) Save(_ context.Context, shortLink, longLink string, user *models.User) error {
 	f.mux.Lock()
 	defer f.mux.Unlock()
-	f.urls[shortLink] = urlData{Long: longLink, UserID: user.ID}
-	err := AppendToFile(f.Log, f.filePath, shortLink, longLink, f.counter)
+	f.urls[shortLink] = urlData{Long: longLink, UserID: user.ID, Short: shortLink}
+	err := AppendToFile(f.Log, f.filePath, shortLink, longLink, f.counter, user)
 	if err != nil {
 		return fmt.Errorf("failed append to file: %w", err)
 	}

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net/url"
+
 	"shortener/internal/logger"
 	"shortener/internal/models"
 	"shortener/internal/storage"
@@ -34,7 +36,11 @@ func (s *Service) GetURL(ctx context.Context, short string) (string, error) {
 	return long, nil
 }
 
-func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest, user *models.User) (models.BatchResponseArray, error) {
+func (s *Service) SaveURLs(
+	ctx context.Context,
+	input []models.BatchRequest,
+	user *models.User,
+) (models.BatchResponseArray, error) {
 	processed := s.convertData(ctx, input)
 	saved, err := s.Storage.BatchSave(ctx, processed, user)
 	if err != nil {
@@ -86,9 +92,13 @@ func (s *Service) GetUserURLs(ctx context.Context, user *models.User) (models.Us
 	if err != nil {
 		return nil, fmt.Errorf("failed get urls by userID: %w", err)
 	}
-	userURLs := make(models.UserURLs, len(data))
+	userURLs := make(models.UserURLs, 0)
 	for _, item := range data {
-		userURLs = append(userURLs, models.URL{ShortURL: item.Short, OriginalURL: item.Long})
+		short, err := url.JoinPath(s.BaseURL, "/", item.Short)
+		if err != nil {
+			return nil, fmt.Errorf("failed join url for short: %w", err)
+		}
+		userURLs = append(userURLs, models.URL{ShortURL: short, OriginalURL: item.Long})
 	}
 	return userURLs, nil
 }

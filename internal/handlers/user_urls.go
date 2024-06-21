@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
+
 	"shortener/internal/models"
 	"shortener/internal/service"
 )
@@ -17,7 +18,15 @@ func GetURLsHandler(svc *service.Service, user *models.User) http.HandlerFunc {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		fmt.Println(urls)
-		fmt.Println(err)
+
+		w.Header().Set("Content-Type", "application/json")
+		if len(urls) == 0 {
+			w.WriteHeader(http.StatusNoContent)
+		}
+		if err = json.NewEncoder(w).Encode(urls); err != nil {
+			svc.Log.Err("failed to encode response: ", err)
+			http.Error(w, "", http.StatusInternalServerError)
+			return
+		}
 	}
 }

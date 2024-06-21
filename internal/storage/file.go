@@ -66,17 +66,20 @@ func ReadFileStorage(filename string) (map[string]urlData, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal row: %w", err)
 		}
-		URLs[urlRecord.ShortURL] = urlData{ID: urlRecord.UUID, Long: urlRecord.OriginalURL, UserID: urlRecord.UserID}
+		URLs[urlRecord.ShortURL] = urlData{
+			ID: urlRecord.UUID, Long: urlRecord.OriginalURL, UserID: urlRecord.UserID, Short: urlRecord.ShortURL,
+		}
 	}
 
 	return URLs, nil
 }
 
-func AppendToFile(log *logger.Log, filename, short, long string, uuid uint64) error {
+func AppendToFile(log *logger.Log, filename, short, long string, uuid uint64, user *models.User) error {
 	urlRecord := URLRecord{
 		UUID:        strconv.FormatUint(uuid+1, 10),
 		ShortURL:    short,
 		OriginalURL: long,
+		UserID:      user.ID,
 	}
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {

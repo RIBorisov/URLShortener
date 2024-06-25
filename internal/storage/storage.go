@@ -50,11 +50,41 @@ type URLStorage interface {
 	Save(ctx context.Context, shortLink, longLink string, user *models.User) error
 	BatchSave(ctx context.Context, input models.BatchArray, user *models.User) (models.BatchArray, error)
 	GetByUserID(ctx context.Context, user *models.User) ([]models.BaseRow, error)
+	DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error
 }
 
-type URLRow struct {
-	models.BaseRow
-	ID int `json:"id"`
+func (d *inDatabase) DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error {
+	const stmt = `UPDATE urls SET is_deleted = TRUE WHERE short = @short AND user_id = @user_id`
+
+	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %w", err)
+	}
+	defer func() {
+		if err = tx.Rollback(ctx); err != nil {
+			d.log.Err("failed to rollback transaction: ", err)
+		}
+	}()
+
+	batch := pgx.Batch{}
+	for _, in := range input {
+		args := pgx.NamedArgs{"short": in, "user_id": user.ID}
+		batch.Queue(stmt, args)
+	}
+	batchResults := tx.SendBatch(ctx, &batch)
+	_, batchErr := batchResults.Exec()
+	if batchErr != nil {
+		return fmt.Errorf("failed execute batch request: %w", batchErr)
+	}
+
+	if err = batchResults.Close(); err != nil {
+		return fmt.Errorf("failed to close connection results: %w", err)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (d *inDatabase) GetByUserID(ctx context.Context, user *models.User) ([]models.BaseRow, error) {
@@ -133,7 +163,7 @@ func (d *inDatabase) BatchSave(
 
 	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
 	if err != nil {
-		return nil, fmt.Errorf("failed to begion conn tx: %w", err)
+		return nil, fmt.Errorf("failed to begin tx: %w", err)
 	}
 	defer func() {
 		if err = tx.Rollback(ctx); err != nil {
@@ -157,7 +187,7 @@ func (d *inDatabase) BatchSave(
 	_, batchErr := batchResults.Exec()
 
 	if batchErr != nil {
-		return nil, fmt.Errorf("batch res exec: %w", batchErr)
+		return nil, fmt.Errorf("failed execute batch request: %w", batchErr)
 	}
 
 	// закрываем тут т.к. нужно дальше коммитить транзакцию
@@ -196,6 +226,10 @@ func (m *inMemory) GetByUserID(_ context.Context, user *models.User) ([]models.B
 		m.mux.Unlock()
 	}
 	return data, nil
+}
+
+func (m *inMemory) DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error {
+	return nil
 }
 
 func (m *inMemory) Get(_ context.Context, shortLink string) (string, error) {
@@ -257,6 +291,10 @@ func (f *inFile) BatchSave(_ context.Context, input models.BatchArray, user *mod
 	}
 	f.counter += uint64(len(saved))
 	return saved, nil
+}
+
+func (f *inFile) DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error {
+	return nil
 }
 
 func (f *inFile) restore() error {

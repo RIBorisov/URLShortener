@@ -42,3 +42,5 @@ type BaseRow struct {
 	Short string `json:"short"`
 	Long  string `json:"long"`
 }
+
+type DeleteURLs []string

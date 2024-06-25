@@ -57,6 +57,15 @@ func (s *Service) SaveURLs(
 	return resp, nil
 }
 
+func (s *Service) DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error {
+	err := s.Storage.DeleteURLs(ctx, input, user)
+	if err != nil {
+		return fmt.Errorf("failed to delete URLs: %w", err)
+	}
+
+	return nil
+}
+
 func (s *Service) generateUniqueShortLink(ctx context.Context) string {
 	const length = 8
 	var uniqString string

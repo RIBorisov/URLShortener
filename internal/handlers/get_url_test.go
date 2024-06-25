@@ -39,6 +39,9 @@ func (m *MockDB) BatchSave(_ context.Context, _ models.BatchArray, _ *models.Use
 func (m *MockDB) GetByUserID(_ context.Context, _ *models.User) ([]models.BaseRow, error) {
 	return nil, nil
 }
+func (m *MockDB) DeleteURLs(_ context.Context, _ models.DeleteURLs, _ *models.User) error {
+	return nil
+}
 
 func (m *MockDB) Close() error {
 	return nil

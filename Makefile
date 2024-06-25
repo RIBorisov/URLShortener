@@ -1,5 +1,3 @@
-GOLANGCI_LINT_CACHE?=/tmp/praktikum-golangci-lint-cache
-
 .PHONY: lint
 lint: _golangci-lint-rm-unformatted-report
 
@@ -10,15 +8,6 @@ _golangci-lint-reports-mkdir:
 .PHONY: _golangci-lint-run
 _golangci-lint-run: _golangci-lint-reports-mkdir
 	-golangci-lint run -c .golangci.yml > ./golangci-lint/report-unformatted.json
-
-#	-docker run --rm \
-#    -v $(shell pwd):/app \
-#    -v $(GOLANGCI_LINT_CACHE):/root/.cache \
-#    -w /app \
-#    golangci/golangci-lint:v1.57.2 \
-#        golangci-lint run \
-#            -c .golangci.yml \
-#	> ./golangci-lint/report-unformatted.json
 
 .PHONY: _golangci-lint-format-report
 _golangci-lint-format-report: _golangci-lint-run

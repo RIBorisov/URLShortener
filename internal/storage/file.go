@@ -52,13 +52,13 @@ func NewConsumer(filename string) (*Consumer, error) {
 	}, nil
 }
 
-func ReadFileStorage(filename string) (map[string]urlData, error) {
+func ReadFileStorage(filename string) (map[string]entity, error) {
 	c, err := NewConsumer(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new consumer: %w", err)
 	}
 	var urlRecord URLRecord
-	var URLs = map[string]urlData{}
+	var URLs = map[string]entity{}
 
 	for c.reader.Scan() {
 		row := c.reader.Text()
@@ -66,7 +66,7 @@ func ReadFileStorage(filename string) (map[string]urlData, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal row: %w", err)
 		}
-		URLs[urlRecord.ShortURL] = urlData{
+		URLs[urlRecord.ShortURL] = entity{
 			ID: urlRecord.UUID, Long: urlRecord.OriginalURL, UserID: urlRecord.UserID, Short: urlRecord.ShortURL,
 		}
 	}

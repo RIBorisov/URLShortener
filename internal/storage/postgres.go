@@ -53,7 +53,8 @@ func prepareDatabase(ctx context.Context, db *pgxpool.Pool, log *logger.Log) err
     id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     short VARCHAR(200) NOT NULL UNIQUE,
     long VARCHAR(200) NOT NULL, 
-    user_id VARCHAR(200)
+    user_id VARCHAR(200),
+    is_deleted BOOLEAN DEFAULT FALSE
 );`
 		idxStmt = `CREATE UNIQUE INDEX IF NOT EXISTS idx_long_url ON urls (long);`
 	)

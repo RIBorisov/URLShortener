@@ -20,7 +20,7 @@ type inMemory struct {
 	*logger.Log
 	mux     *sync.Mutex
 	cfg     *config.Config
-	urls    map[string]urlData
+	urls    map[string]entity
 	counter uint64
 }
 
@@ -35,11 +35,12 @@ type inDatabase struct {
 	log *logger.Log
 }
 
-type urlData struct {
-	Long   string
-	ID     string
-	Short  string
-	UserID string
+type entity struct {
+	Long    string `db:"long"`
+	ID      string `db:"id"`
+	Short   string `db:"short"`
+	UserID  string `db:"user_id"`
+	Deleted bool   `db:"is_deleted"`
 }
 
 type URLStorage interface {
@@ -204,7 +205,7 @@ func (m *inMemory) Get(_ context.Context, shortLink string) (string, error) {
 func (m *inMemory) Save(_ context.Context, shortLink, longLink string, user *models.User) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	m.urls[shortLink] = urlData{
+	m.urls[shortLink] = entity{
 		Long:   longLink,
 		UserID: user.ID,
 	}
@@ -217,7 +218,7 @@ func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray, user *m
 
 	for _, item := range input {
 		m.mux.Lock()
-		m.urls[item.ShortURL] = urlData{Long: item.OriginalURL, ID: item.CorrelationID, UserID: user.ID}
+		m.urls[item.ShortURL] = entity{Long: item.OriginalURL, ID: item.CorrelationID, UserID: user.ID}
 		m.mux.Unlock()
 		m.counter++
 		result = append(result, models.Batch{
@@ -232,7 +233,7 @@ func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray, user *m
 func (f *inFile) Save(_ context.Context, shortLink, longLink string, user *models.User) error {
 	f.mux.Lock()
 	defer f.mux.Unlock()
-	f.urls[shortLink] = urlData{Long: longLink, UserID: user.ID, Short: shortLink}
+	f.urls[shortLink] = entity{Long: longLink, UserID: user.ID, Short: shortLink}
 	err := AppendToFile(f.Log, f.filePath, shortLink, longLink, f.counter, user)
 	if err != nil {
 		return fmt.Errorf("failed append to file: %w", err)
@@ -279,14 +280,14 @@ func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (URLS
 	if cfg.Service.FileStoragePath == "" {
 		log.Info("using memory storage..")
 		return &inMemory{
-			urls: make(map[string]urlData),
+			urls: make(map[string]entity),
 			mux:  &sync.Mutex{},
 			cfg:  cfg,
 		}, nil
 	}
 	storage := &inFile{
 		inMemory: inMemory{
-			urls: make(map[string]urlData),
+			urls: make(map[string]entity),
 			mux:  &sync.Mutex{},
 			cfg:  cfg,
 		},

@@ -31,8 +31,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 			r.Get("/urls", GetURLsHandler(svc, user))
 		})
 	})
-	router.Delete("/urls", DeleteURLsHandler(svc, user))
-
+	router.Delete("/api/user/urls", DeleteURLsHandler(svc, user))
 	router.Get("/ping", PingHandler(svc))
 	return router
 }

@@ -29,9 +29,9 @@ func NewRouter(svc *service.Service) *chi.Mux {
 		r.Route("/user", func(r chi.Router) {
 			r.Use(mw.CheckAuth(svc.Log, user).Middleware)
 			r.Get("/urls", GetURLsHandler(svc, user))
-			r.Delete("/urls", DeleteURLsHandler(svc, user))
 		})
 	})
+	router.Delete("/urls", DeleteURLsHandler(svc, user))
 
 	router.Get("/ping", PingHandler(svc))
 	return router

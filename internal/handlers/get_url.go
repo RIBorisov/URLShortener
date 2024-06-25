@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
+	"shortener/internal/storage"
 
 	"github.com/go-chi/chi/v5"
 
@@ -15,8 +17,13 @@ func GetHandler(svc *service.Service) http.HandlerFunc {
 		short := chi.URLParam(r, "id")
 		long, err := svc.GetURL(ctx, short)
 		if err != nil {
-			svc.Log.Err("failed to get URL: ", err)
-			w.WriteHeader(http.StatusBadRequest)
+			if errors.Is(err, storage.ErrURLDeleted) {
+				svc.Log.Info("requested deleted url", "short", short)
+				w.WriteHeader(http.StatusGone)
+			} else {
+				svc.Log.Err("failed to get URL: ", err)
+				w.WriteHeader(http.StatusBadRequest)
+			}
 			return
 		}
 		origin, err := url.JoinPath(svc.BaseURL, short)

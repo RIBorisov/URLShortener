@@ -29,6 +29,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 		r.Route("/user", func(r chi.Router) {
 			r.Use(mw.CheckAuth(svc.Log, user).Middleware)
 			r.Get("/urls", GetURLsHandler(svc, user))
+			r.Delete("/urls", DeleteURLsHandler(svc, user))
 		})
 	})
 

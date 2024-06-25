@@ -78,17 +78,23 @@ func (d *inDatabase) GetByUserID(ctx context.Context, user *models.User) ([]mode
 }
 
 func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, error) {
-	const stmt = `SELECT long FROM urls WHERE short = $1`
+	const stmt = `SELECT long, is_deleted FROM urls WHERE short = $1`
 
-	var row string
-	err := d.pool.QueryRow(ctx, stmt, shortLink).Scan(&row)
+	var (
+		long      string
+		isDeleted bool
+	)
+	err := d.pool.QueryRow(ctx, stmt, shortLink).Scan(&long, &isDeleted)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", ErrURLNotFound
 		}
 		return "", fmt.Errorf("failed get row: %w", err)
 	}
-	return row, nil
+	if isDeleted {
+		return "", ErrURLDeleted
+	}
+	return long, nil
 }
 
 func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string, user *models.User) error {
@@ -337,4 +343,7 @@ func (m *inMemory) Ping(_ context.Context) error {
 	return nil
 }
 
-var ErrURLNotFound = errors.New("url not found")
+var (
+	ErrURLNotFound = errors.New("url not found")
+	ErrURLDeleted  = errors.New("url has been deleted")
+)

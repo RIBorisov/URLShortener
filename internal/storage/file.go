@@ -15,11 +15,11 @@ import (
 
 type URLRecord struct {
 	UUID        string `json:"uuid"`
-	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+	ShortURL    string `json:"short_url"`
 	UserID      string `json:"user_id"`
+	Deleted     bool   `json:"is_deleted"`
 }
-
 type Consumer struct {
 	file   *os.File
 	reader *bufio.Scanner
@@ -52,13 +52,13 @@ func NewConsumer(filename string) (*Consumer, error) {
 	}, nil
 }
 
-func ReadFileStorage(filename string) (map[string]entity, error) {
+func ReadFileStorage(filename string) (map[string]URLRecord, error) {
 	c, err := NewConsumer(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new consumer: %w", err)
 	}
 	var urlRecord URLRecord
-	var URLs = map[string]entity{}
+	var URLs = map[string]URLRecord{}
 
 	for c.reader.Scan() {
 		row := c.reader.Text()
@@ -66,8 +66,11 @@ func ReadFileStorage(filename string) (map[string]entity, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal row: %w", err)
 		}
-		URLs[urlRecord.ShortURL] = entity{
-			ID: urlRecord.UUID, Long: urlRecord.OriginalURL, UserID: urlRecord.UserID, Short: urlRecord.ShortURL,
+		URLs[urlRecord.ShortURL] = URLRecord{
+			UUID:        urlRecord.UUID,
+			OriginalURL: urlRecord.OriginalURL,
+			ShortURL:    urlRecord.ShortURL,
+			UserID:      urlRecord.UserID,
 		}
 	}
 
@@ -77,9 +80,10 @@ func ReadFileStorage(filename string) (map[string]entity, error) {
 func AppendToFile(log *logger.Log, filename, short, long string, uuid uint64, user *models.User) error {
 	urlRecord := URLRecord{
 		UUID:        strconv.FormatUint(uuid+1, 10),
-		ShortURL:    short,
 		OriginalURL: long,
+		ShortURL:    short,
 		UserID:      user.ID,
+		Deleted:     false,
 	}
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -88,7 +92,7 @@ func AppendToFile(log *logger.Log, filename, short, long string, uuid uint64, us
 	defer func() {
 		err = file.Close()
 		if err != nil {
-			log.Err("failed to close file: ", err)
+			log.Err("failed to close file", err)
 		}
 	}()
 	data, err := json.Marshal(&urlRecord)
@@ -127,9 +131,10 @@ func BatchAppend(
 	for _, item := range input {
 		var row = URLRecord{
 			UUID:        strconv.FormatUint(counter+1, 10),
-			ShortURL:    item.CorrelationID,
 			OriginalURL: item.OriginalURL,
+			ShortURL:    item.CorrelationID,
 			UserID:      user.ID,
+			Deleted:     false,
 		}
 		data, err := json.Marshal(&row)
 		if err != nil {
@@ -153,4 +158,31 @@ func BatchAppend(
 	}
 
 	return saved, nil
+}
+func BatchUpdate(filename string, input []URLRecord) error {
+	file, err := os.OpenFile(filename, os.O_TRUNC|os.O_RDWR, 0666)
+	if err != nil {
+		return fmt.Errorf("failed to open file %w", err)
+	}
+	result := make([]byte, 0)
+	for _, in := range input {
+		record := URLRecord{
+			UUID:        in.UUID,
+			OriginalURL: in.OriginalURL,
+			ShortURL:    in.ShortURL,
+			UserID:      in.UserID,
+			Deleted:     in.Deleted,
+		}
+		data, err := json.Marshal(&record)
+		if err != nil {
+			return fmt.Errorf("failed marshal data: %w", err)
+		}
+		data = append(data, '\n')
+		result = append(result, data...)
+	}
+	if _, err = file.Write(result); err != nil {
+		return fmt.Errorf("failed write line into file: %w", err)
+	}
+
+	return nil
 }

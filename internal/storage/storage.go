@@ -20,7 +20,7 @@ type inMemory struct {
 	*logger.Log
 	mux     *sync.Mutex
 	cfg     *config.Config
-	urls    map[string]entity
+	urls    map[string]URLRecord
 	counter uint64
 }
 
@@ -35,14 +35,6 @@ type inDatabase struct {
 	log *logger.Log
 }
 
-type entity struct {
-	Long    string `db:"long"`
-	ID      string `db:"id"`
-	Short   string `db:"short"`
-	UserID  string `db:"user_id"`
-	Deleted bool   `db:"is_deleted"`
-}
-
 type URLStorage interface {
 	Close() error
 	Ping(ctx context.Context) error
@@ -54,7 +46,7 @@ type URLStorage interface {
 }
 
 func (d *inDatabase) DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error {
-	const stmt = `UPDATE urls SET is_deleted = TRUE WHERE short = @short AND user_id = @user_id`
+	const stmt = `UPDATE urls SET is_deleted = TRUE WHERE short = @short AND user_id = @user_id AND is_deleted = FALSE`
 
 	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
 	if err != nil {
@@ -88,7 +80,7 @@ func (d *inDatabase) DeleteURLs(ctx context.Context, input models.DeleteURLs, us
 }
 
 func (d *inDatabase) GetByUserID(ctx context.Context, user *models.User) ([]models.BaseRow, error) {
-	const stmt = `SELECT short, long FROM urls WHERE user_id = $1`
+	const stmt = `SELECT short, long FROM urls WHERE user_id = $1 AND is_deleted = FALSE`
 	rows, err := d.pool.Query(ctx, stmt, user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed get urls for user_id = %s: %w", user.ID, err)
@@ -217,10 +209,10 @@ func (m *inMemory) GetByUserID(_ context.Context, user *models.User) ([]models.B
 	var data []models.BaseRow
 	for _, u := range m.urls {
 		m.mux.Lock()
-		if user.ID == u.UserID {
+		if user.ID == u.UserID && u.Deleted == false {
 			data = append(data, models.BaseRow{
-				Long:  u.Long,
-				Short: u.Short,
+				Long:  u.OriginalURL,
+				Short: u.ShortURL,
 			})
 		}
 		m.mux.Unlock()
@@ -228,7 +220,33 @@ func (m *inMemory) GetByUserID(_ context.Context, user *models.User) ([]models.B
 	return data, nil
 }
 
-func (m *inMemory) DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error {
+func (m *inMemory) DeleteURLs(_ context.Context, input models.DeleteURLs, user *models.User) error {
+	var wg sync.WaitGroup
+	for _, short := range input {
+		short := short
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			u, ok := m.urls[short]
+			if !ok {
+				m.Log.Err("url not found", short)
+				return
+			}
+
+			if u.UserID == user.ID && u.Deleted == false {
+				m.urls[short] = URLRecord{
+					OriginalURL: u.OriginalURL,
+					ShortURL:    u.ShortURL,
+					UUID:        u.UUID,
+					UserID:      u.UserID,
+					Deleted:     true,
+				}
+				m.Log.Debug("deleted url", "short", u.ShortURL)
+			}
+		}()
+	}
+	wg.Wait()
+
 	return nil
 }
 
@@ -237,7 +255,7 @@ func (m *inMemory) Get(_ context.Context, shortLink string) (string, error) {
 	defer m.mux.Unlock()
 	longLink, ok := m.urls[shortLink]
 	if ok {
-		return longLink.Long, nil
+		return longLink.OriginalURL, nil
 	}
 	return "", ErrURLNotFound
 }
@@ -245,9 +263,11 @@ func (m *inMemory) Get(_ context.Context, shortLink string) (string, error) {
 func (m *inMemory) Save(_ context.Context, shortLink, longLink string, user *models.User) error {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	m.urls[shortLink] = entity{
-		Long:   longLink,
-		UserID: user.ID,
+	m.urls[shortLink] = URLRecord{
+		OriginalURL: longLink,
+		ShortURL:    shortLink,
+		UserID:      user.ID,
+		Deleted:     false,
 	}
 	m.counter++
 	return nil
@@ -258,7 +278,7 @@ func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray, user *m
 
 	for _, item := range input {
 		m.mux.Lock()
-		m.urls[item.ShortURL] = entity{Long: item.OriginalURL, ID: item.CorrelationID, UserID: user.ID}
+		m.urls[item.ShortURL] = URLRecord{OriginalURL: item.OriginalURL, UUID: item.CorrelationID, UserID: user.ID}
 		m.mux.Unlock()
 		m.counter++
 		result = append(result, models.Batch{
@@ -273,7 +293,7 @@ func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray, user *m
 func (f *inFile) Save(_ context.Context, shortLink, longLink string, user *models.User) error {
 	f.mux.Lock()
 	defer f.mux.Unlock()
-	f.urls[shortLink] = entity{Long: longLink, UserID: user.ID, Short: shortLink}
+	f.urls[shortLink] = URLRecord{OriginalURL: longLink, UserID: user.ID, ShortURL: shortLink}
 	err := AppendToFile(f.Log, f.filePath, shortLink, longLink, f.counter, user)
 	if err != nil {
 		return fmt.Errorf("failed append to file: %w", err)
@@ -294,6 +314,28 @@ func (f *inFile) BatchSave(_ context.Context, input models.BatchArray, user *mod
 }
 
 func (f *inFile) DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error {
+	err := f.inMemory.DeleteURLs(ctx, input, user)
+	if err != nil {
+		return fmt.Errorf("failed delete user urls: %w", err)
+	}
+	urls := make([]URLRecord, 0, len(input))
+	f.mux.Lock()
+	defer f.mux.Unlock()
+
+	for _, u := range f.inMemory.urls {
+		urls = append(urls, URLRecord{
+			UUID:        u.UUID,
+			OriginalURL: u.OriginalURL,
+			ShortURL:    u.ShortURL,
+			UserID:      u.UserID,
+			Deleted:     u.Deleted,
+		})
+	}
+
+	if err = BatchUpdate(f.filePath, urls); err != nil {
+		return fmt.Errorf("failed batch update: %w", err)
+	}
+
 	return nil
 }
 
@@ -324,16 +366,18 @@ func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (URLS
 	if cfg.Service.FileStoragePath == "" {
 		log.Info("using memory storage..")
 		return &inMemory{
-			urls: make(map[string]entity),
+			urls: make(map[string]URLRecord),
 			mux:  &sync.Mutex{},
 			cfg:  cfg,
+			Log:  log,
 		}, nil
 	}
 	storage := &inFile{
 		inMemory: inMemory{
-			urls: make(map[string]entity),
+			urls: make(map[string]URLRecord),
 			mux:  &sync.Mutex{},
 			cfg:  cfg,
+			Log:  log,
 		},
 		filePath: cfg.Service.FileStoragePath,
 	}

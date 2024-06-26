@@ -11,11 +11,11 @@ import (
 
 	"shortener/internal/logger"
 	"shortener/internal/models"
+	"shortener/internal/service"
 )
 
 const (
-	tokenExp     = time.Hour * 3
-	secretKey    = "supersecretkey"
+	tokenExp     = time.Hour * 720
 	unauthorized = "Access denied"
 )
 
@@ -25,12 +25,12 @@ type Claims struct {
 }
 
 type BaseAuth struct {
-	Log  *logger.Log
-	User *models.User
+	Service *service.Service
+	User    *models.User
 }
 
-func Auth(log *logger.Log, user *models.User) *BaseAuth {
-	return &BaseAuth{Log: log, User: user}
+func Auth(svc *service.Service, user *models.User) *BaseAuth {
+	return &BaseAuth{Service: svc, User: user}
 }
 
 func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
@@ -38,18 +38,18 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 		token, err := r.Cookie("token")
 		if err != nil {
 			if errors.Is(err, http.ErrNoCookie) {
-				newToken, err := buildJWTString()
+				newToken, err := buildJWTString(ba.Service.SecretKey)
 				if err != nil {
-					ba.Log.Err("failed build JWTString: ", err)
+					ba.Service.Log.Err("failed build JWTString: ", err)
 					http.Error(w, "", http.StatusInternalServerError)
 					return
 				}
 				w.Header().Set("Authorization", newToken)
 				http.SetCookie(w, &http.Cookie{Name: "token", Value: newToken})
 
-				userID := getUserID(newToken, ba.Log)
+				userID := getUserID(newToken, ba.Service.SecretKey, ba.Service.Log)
 				if userID == "" {
-					ba.Log.Err(unauthorized, "no userID")
+					ba.Service.Log.Err(unauthorized, "no userID")
 					http.Error(w, unauthorized, http.StatusUnauthorized)
 					return
 				}
@@ -57,14 +57,14 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-			ba.Log.Err("failed get cookie: ", err)
+			ba.Service.Log.Err("failed get cookie: ", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 
-		userID := getUserID(token.Value, ba.Log)
+		userID := getUserID(token.Value, ba.Service.SecretKey, ba.Service.Log)
 		if userID == "" {
-			ba.Log.Err(unauthorized, "no userID")
+			ba.Service.Log.Err(unauthorized, "no userID")
 			http.Error(w, unauthorized, http.StatusUnauthorized)
 			return
 		}
@@ -104,7 +104,7 @@ func (bc *BaseCheck) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-func buildJWTString() (string, error) {
+func buildJWTString(secretKey string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenExp)),
@@ -118,7 +118,7 @@ func buildJWTString() (string, error) {
 	return tokenString, nil
 }
 
-func getUserID(tokenString string, log *logger.Log) string {
+func getUserID(tokenString, secretKey string, log *logger.Log) string {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {

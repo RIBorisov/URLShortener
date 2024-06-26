@@ -37,6 +37,7 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		FileStoragePath: cfg.Service.FileStoragePath,
 		DatabaseDSN:     cfg.Service.DatabaseDSN,
 		Log:             log,
+		SecretKey:       cfg.Service.SecretKey,
 	}
 
 	r := handlers.NewRouter(svc)

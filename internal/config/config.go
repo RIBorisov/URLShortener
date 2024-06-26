@@ -10,6 +10,7 @@ const (
 	baseURL         = "BASE_URL"
 	serverAddress   = "SERVER_ADDRESS"
 	fileStoragePath = "FILE_STORAGE_PATH"
+	secretKey       = "!@#$%^YdBg0DS"
 )
 
 type ServiceConfig struct {
@@ -17,6 +18,7 @@ type ServiceConfig struct {
 	BaseURL         string `env:"BASE_URL" env-default:"http://localhost:8080"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH" env-default:"/tmp/short-url-db.json"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
+	SecretKey       string `env:"SECRET_KEY"`
 }
 
 type URLDetail struct {
@@ -33,6 +35,7 @@ func LoadConfig() *Config {
 	f := parseFlags()
 	cfg.URL.Length = 8
 	cfg.Service.FileStoragePath = defaultFilePath
+	cfg.Service.SecretKey = secretKey
 
 	dsn, ok := os.LookupEnv(dbDSN)
 	if ok {

@@ -14,7 +14,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 	user := &models.User{}
 
 	router.Use(middleware.Recoverer)
-	router.Use(mw.Auth(svc.Log, user).Middleware)
+	router.Use(mw.Auth(svc, user).Middleware)
 	router.Use(mw.Gzip(svc.Log).Middleware)
 	router.Use(mw.Log(svc.Log).Middleware)
 	router.Route("/", func(r chi.Router) {

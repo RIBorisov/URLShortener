@@ -18,6 +18,7 @@ type Service struct {
 	FileStoragePath string
 	BaseURL         string
 	DatabaseDSN     string
+	SecretKey       string
 }
 
 func (s *Service) SaveURL(ctx context.Context, long string, user *models.User) (string, error) {

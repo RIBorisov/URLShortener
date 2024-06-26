@@ -209,7 +209,7 @@ func (m *inMemory) GetByUserID(_ context.Context, user *models.User) ([]models.B
 	var data []models.BaseRow
 	for _, u := range m.urls {
 		m.mux.Lock()
-		if user.ID == u.UserID && u.Deleted == false {
+		if user.ID == u.UserID && !u.Deleted {
 			data = append(data, models.BaseRow{
 				Long:  u.OriginalURL,
 				Short: u.ShortURL,
@@ -233,7 +233,7 @@ func (m *inMemory) DeleteURLs(_ context.Context, input models.DeleteURLs, user *
 				return
 			}
 
-			if u.UserID == user.ID && u.Deleted == false {
+			if u.UserID == user.ID && !u.Deleted {
 				m.urls[short] = URLRecord{
 					OriginalURL: u.OriginalURL,
 					ShortURL:    u.ShortURL,

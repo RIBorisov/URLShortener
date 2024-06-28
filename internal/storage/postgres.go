@@ -51,12 +51,13 @@ func prepareDatabase(ctx context.Context, db *pgxpool.Pool, log *logger.Log) err
 	const (
 		tableStmt = `CREATE TABLE IF NOT EXISTS urls (
     id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    short VARCHAR(200) NOT NULL UNIQUE,
+    short VARCHAR(200) NOT NULL,
     long VARCHAR(200) NOT NULL, 
     user_id VARCHAR(200),
     is_deleted BOOLEAN DEFAULT FALSE
 );`
-		idxStmt = `CREATE UNIQUE INDEX IF NOT EXISTS idx_long_url ON urls (long);`
+		idxStmtLong  = `CREATE UNIQUE INDEX IF NOT EXISTS idx_long_url ON urls (long);`
+		idxStmtShort = `CREATE UNIQUE INDEX IF NOT EXISTS idx_short_is_not_deleted ON urls (short) WHERE is_deleted = FALSE;`
 	)
 	tx, err := db.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
 	if err != nil {
@@ -74,9 +75,13 @@ func prepareDatabase(ctx context.Context, db *pgxpool.Pool, log *logger.Log) err
 	if err != nil {
 		return fmt.Errorf("failed to create table: %w", err)
 	}
-	_, err = tx.Exec(ctx, idxStmt)
+	_, err = tx.Exec(ctx, idxStmtLong)
 	if err != nil {
 		return fmt.Errorf("failed to set index on field long: %w", err)
+	}
+	_, err = tx.Exec(ctx, idxStmtShort)
+	if err != nil {
+		return fmt.Errorf("failed to set index on field short: %w", err)
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit the transaction: %w", err)

@@ -207,15 +207,16 @@ func (d *inDatabase) BatchSave(
 
 func (m *inMemory) GetByUserID(_ context.Context, user *models.User) ([]models.BaseRow, error) {
 	var data []models.BaseRow
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	for _, u := range m.urls {
-		m.mux.Lock()
 		if user.ID == u.UserID && !u.Deleted {
 			data = append(data, models.BaseRow{
 				Long:  u.OriginalURL,
 				Short: u.ShortURL,
 			})
 		}
-		m.mux.Unlock()
+
 	}
 	return data, nil
 }

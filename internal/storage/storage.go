@@ -39,13 +39,14 @@ type URLStorage interface {
 	Close() error
 	Ping(ctx context.Context) error
 	Get(ctx context.Context, shortLink string) (string, error)
-	Save(ctx context.Context, shortLink, longLink string, user *models.User) error
-	BatchSave(ctx context.Context, input models.BatchArray, user *models.User) (models.BatchArray, error)
-	GetByUserID(ctx context.Context, user *models.User) ([]models.BaseRow, error)
-	DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error
+	Save(ctx context.Context, shortLink, longLink string) error
+	BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error)
+	GetByUserID(ctx context.Context) ([]models.BaseRow, error)
+	DeleteURLs(ctx context.Context, input models.DeleteURLs) error
 }
 
-func (d *inDatabase) DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error {
+func (d *inDatabase) DeleteURLs(ctx context.Context, input models.DeleteURLs) error {
+	userID := ctx.Value(models.CtxUserIDKey).(string)
 	const stmt = `UPDATE urls SET is_deleted = TRUE WHERE short = @short AND user_id = @user_id AND is_deleted = FALSE`
 
 	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
@@ -60,7 +61,7 @@ func (d *inDatabase) DeleteURLs(ctx context.Context, input models.DeleteURLs, us
 
 	batch := pgx.Batch{}
 	for _, in := range input {
-		args := pgx.NamedArgs{"short": in, "user_id": user.ID}
+		args := pgx.NamedArgs{"short": in, "user_id": userID}
 		batch.Queue(stmt, args)
 	}
 	batchResults := tx.SendBatch(ctx, &batch)
@@ -79,11 +80,12 @@ func (d *inDatabase) DeleteURLs(ctx context.Context, input models.DeleteURLs, us
 	return nil
 }
 
-func (d *inDatabase) GetByUserID(ctx context.Context, user *models.User) ([]models.BaseRow, error) {
+func (d *inDatabase) GetByUserID(ctx context.Context) ([]models.BaseRow, error) {
 	const stmt = `SELECT short, long FROM urls WHERE user_id = $1 AND is_deleted = FALSE`
-	rows, err := d.pool.Query(ctx, stmt, user.ID)
+	userID := ctx.Value(models.CtxUserIDKey).(string)
+	rows, err := d.pool.Query(ctx, stmt, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed get urls for user_id = %s: %w", user.ID, err)
+		return nil, fmt.Errorf("failed get urls for user_id = %s: %w", userID, err)
 	}
 	var data []models.BaseRow
 	for rows.Next() {
@@ -119,16 +121,17 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, error) 
 	return long, nil
 }
 
-func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string, user *models.User) error {
+func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error {
 	const (
 		longConstraint = "idx_long_url"
 		selectStmt     = `SELECT short FROM urls WHERE long = $1`
 		insertStmt     = `INSERT INTO urls (short, long, user_id) VALUES ($1, $2, $3)`
 	)
 	var existingShortLink string
+	userID := ctx.Value(models.CtxUserIDKey).(string)
 	// через транзакцию в этом случае нельзя, т.к. если будет получена ошибка, то
 	// все последующие команды не будут до роллбэк/коммита выполняться. Savepoints использовать - тут оверхед
-	_, err := d.pool.Exec(ctx, insertStmt, shortLink, longLink, user.ID)
+	_, err := d.pool.Exec(ctx, insertStmt, shortLink, longLink, userID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -146,11 +149,7 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string, user 
 	return nil
 }
 
-func (d *inDatabase) BatchSave(
-	ctx context.Context,
-	input models.BatchArray,
-	user *models.User,
-) (models.BatchArray, error) {
+func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error) {
 	const stmt = `INSERT INTO urls (short, long, user_id) VALUES (@short, @long, @user_id)`
 
 	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
@@ -162,13 +161,14 @@ func (d *inDatabase) BatchSave(
 			d.log.Err("failed to rollback transaction: ", err)
 		}
 	}()
+	userID := ctx.Value(models.CtxUserIDKey).(string)
 
 	batch := pgx.Batch{}
 	for _, in := range input {
 		args := pgx.NamedArgs{
 			"short":   in.ShortURL,
 			"long":    in.OriginalURL,
-			"user_id": user.ID,
+			"user_id": userID,
 		}
 		batch.Queue(stmt, args)
 	}
@@ -205,12 +205,13 @@ func (d *inDatabase) BatchSave(
 	return resp, nil
 }
 
-func (m *inMemory) GetByUserID(_ context.Context, user *models.User) ([]models.BaseRow, error) {
+func (m *inMemory) GetByUserID(ctx context.Context) ([]models.BaseRow, error) {
 	var data []models.BaseRow
 	m.mux.Lock()
+	userID := ctx.Value(models.CtxUserIDKey).(string)
 	defer m.mux.Unlock()
 	for _, u := range m.urls {
-		if user.ID == u.UserID && !u.Deleted {
+		if userID == u.UserID && !u.Deleted {
 			data = append(data, models.BaseRow{
 				Long:  u.OriginalURL,
 				Short: u.ShortURL,
@@ -221,8 +222,9 @@ func (m *inMemory) GetByUserID(_ context.Context, user *models.User) ([]models.B
 	return data, nil
 }
 
-func (m *inMemory) DeleteURLs(_ context.Context, input models.DeleteURLs, user *models.User) error {
+func (m *inMemory) DeleteURLs(ctx context.Context, input models.DeleteURLs) error {
 	var wg sync.WaitGroup
+	userID := ctx.Value(models.CtxUserIDKey).(string)
 	for _, short := range input {
 		short := short
 		wg.Add(1)
@@ -234,7 +236,7 @@ func (m *inMemory) DeleteURLs(_ context.Context, input models.DeleteURLs, user *
 				return
 			}
 
-			if u.UserID == user.ID && !u.Deleted {
+			if u.UserID == userID && !u.Deleted {
 				m.urls[short] = URLRecord{
 					OriginalURL: u.OriginalURL,
 					ShortURL:    u.ShortURL,
@@ -261,25 +263,26 @@ func (m *inMemory) Get(_ context.Context, shortLink string) (string, error) {
 	return "", ErrURLNotFound
 }
 
-func (m *inMemory) Save(_ context.Context, shortLink, longLink string, user *models.User) error {
+func (m *inMemory) Save(ctx context.Context, shortLink, longLink string) error {
 	m.mux.Lock()
+	userID := ctx.Value(models.CtxUserIDKey).(string)
 	defer m.mux.Unlock()
 	m.urls[shortLink] = URLRecord{
 		OriginalURL: longLink,
 		ShortURL:    shortLink,
-		UserID:      user.ID,
+		UserID:      userID,
 		Deleted:     false,
 	}
 	m.counter++
 	return nil
 }
 
-func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray, user *models.User) (models.BatchArray, error) {
+func (m *inMemory) BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error) {
 	var result models.BatchArray
-
+	userID := ctx.Value(models.CtxUserIDKey).(string)
 	for _, item := range input {
 		m.mux.Lock()
-		m.urls[item.ShortURL] = URLRecord{OriginalURL: item.OriginalURL, UUID: item.CorrelationID, UserID: user.ID}
+		m.urls[item.ShortURL] = URLRecord{OriginalURL: item.OriginalURL, UUID: item.CorrelationID, UserID: userID}
 		m.mux.Unlock()
 		m.counter++
 		result = append(result, models.Batch{
@@ -291,11 +294,12 @@ func (m *inMemory) BatchSave(_ context.Context, input models.BatchArray, user *m
 	return result, nil
 }
 
-func (f *inFile) Save(_ context.Context, shortLink, longLink string, user *models.User) error {
+func (f *inFile) Save(ctx context.Context, shortLink, longLink string) error {
 	f.mux.Lock()
+	userID := ctx.Value(models.CtxUserIDKey).(string)
 	defer f.mux.Unlock()
-	f.urls[shortLink] = URLRecord{OriginalURL: longLink, UserID: user.ID, ShortURL: shortLink}
-	err := AppendToFile(f.Log, f.filePath, shortLink, longLink, f.counter, user)
+	f.urls[shortLink] = URLRecord{OriginalURL: longLink, UserID: userID, ShortURL: shortLink}
+	err := AppendToFile(f.Log, f.filePath, shortLink, longLink, userID, f.counter)
 	if err != nil {
 		return fmt.Errorf("failed append to file: %w", err)
 	}
@@ -303,10 +307,11 @@ func (f *inFile) Save(_ context.Context, shortLink, longLink string, user *model
 	return nil
 }
 
-func (f *inFile) BatchSave(_ context.Context, input models.BatchArray, user *models.User) (models.BatchArray, error) {
+func (f *inFile) BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error) {
 	f.mux.Lock()
+	userID := ctx.Value(models.CtxUserIDKey).(string)
 	defer f.mux.Unlock()
-	saved, err := BatchAppend(f.Log, f.filePath, f.cfg.Service.BaseURL, input, f.counter, user)
+	saved, err := BatchAppend(f.Log, f.filePath, f.cfg.Service.BaseURL, userID, input, f.counter)
 	if err != nil {
 		return nil, fmt.Errorf("failed append rows to file: %w", err)
 	}
@@ -314,8 +319,8 @@ func (f *inFile) BatchSave(_ context.Context, input models.BatchArray, user *mod
 	return saved, nil
 }
 
-func (f *inFile) DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error {
-	err := f.inMemory.DeleteURLs(ctx, input, user)
+func (f *inFile) DeleteURLs(ctx context.Context, input models.DeleteURLs) error {
+	err := f.inMemory.DeleteURLs(ctx, input)
 	if err != nil {
 		return fmt.Errorf("failed delete user urls: %w", err)
 	}

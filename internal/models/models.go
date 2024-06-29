@@ -44,3 +44,7 @@ type BaseRow struct {
 }
 
 type DeleteURLs []string
+
+type UserID string
+
+const CtxUserIDKey UserID = "user_id"

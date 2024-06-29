@@ -5,13 +5,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"shortener/internal/models"
-
 	"shortener/internal/service"
 	"shortener/internal/storage"
 )
 
-func SaveHandler(svc *service.Service, user *models.User) http.HandlerFunc {
+func SaveHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		long, err := io.ReadAll(r.Body)
@@ -20,7 +18,7 @@ func SaveHandler(svc *service.Service, user *models.User) http.HandlerFunc {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
-		short, err := svc.SaveURL(ctx, string(long), user)
+		short, err := svc.SaveURL(ctx, string(long))
 		if err != nil {
 			var duplicateErr *storage.DuplicateRecordError
 			if errors.As(err, &duplicateErr) {

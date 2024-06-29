@@ -21,9 +21,9 @@ type Service struct {
 	SecretKey       string
 }
 
-func (s *Service) SaveURL(ctx context.Context, long string, user *models.User) (string, error) {
+func (s *Service) SaveURL(ctx context.Context, long string) (string, error) {
 	short := s.generateUniqueShortLink(ctx)
-	if err := s.Storage.Save(ctx, short, long, user); err != nil {
+	if err := s.Storage.Save(ctx, short, long); err != nil {
 		return short, fmt.Errorf("failed save URL: %w", err)
 	}
 	return short, nil
@@ -37,13 +37,9 @@ func (s *Service) GetURL(ctx context.Context, short string) (string, error) {
 	return long, nil
 }
 
-func (s *Service) SaveURLs(
-	ctx context.Context,
-	input []models.BatchRequest,
-	user *models.User,
-) (models.BatchResponseArray, error) {
+func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest) (models.BatchResponseArray, error) {
 	processed := s.convertData(ctx, input)
-	saved, err := s.Storage.BatchSave(ctx, processed, user)
+	saved, err := s.Storage.BatchSave(ctx, processed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to batch save urls: %w", err)
 	}
@@ -58,8 +54,8 @@ func (s *Service) SaveURLs(
 	return resp, nil
 }
 
-func (s *Service) DeleteURLs(ctx context.Context, input models.DeleteURLs, user *models.User) error {
-	err := s.Storage.DeleteURLs(ctx, input, user)
+func (s *Service) DeleteURLs(ctx context.Context, input models.DeleteURLs) error {
+	err := s.Storage.DeleteURLs(ctx, input)
 	if err != nil {
 		return fmt.Errorf("failed to delete URLs: %w", err)
 	}
@@ -97,8 +93,8 @@ func (s *Service) convertData(ctx context.Context, input []models.BatchRequest) 
 	}
 	return res
 }
-func (s *Service) GetUserURLs(ctx context.Context, user *models.User) (models.UserURLs, error) {
-	data, err := s.Storage.GetByUserID(ctx, user)
+func (s *Service) GetUserURLs(ctx context.Context) (models.UserURLs, error) {
+	data, err := s.Storage.GetByUserID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed get urls by userID: %w", err)
 	}

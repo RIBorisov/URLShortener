@@ -8,7 +8,7 @@ import (
 	"shortener/internal/service"
 )
 
-func BatchHandler(svc *service.Service, user *models.User) http.HandlerFunc {
+func BatchHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req []models.BatchRequest
 
@@ -31,7 +31,7 @@ func BatchHandler(svc *service.Service, user *models.User) http.HandlerFunc {
 			return
 		}
 
-		saved, err := svc.SaveURLs(ctx, req, user)
+		saved, err := svc.SaveURLs(ctx, req)
 		if err != nil {
 			svc.Log.Err("failed to save urls: ", err)
 			http.Error(w, "", http.StatusInternalServerError)

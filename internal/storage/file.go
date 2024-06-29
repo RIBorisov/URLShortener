@@ -77,12 +77,12 @@ func ReadFileStorage(filename string) (map[string]URLRecord, error) {
 	return URLs, nil
 }
 
-func AppendToFile(log *logger.Log, filename, short, long string, uuid uint64, user *models.User) error {
+func AppendToFile(log *logger.Log, filename, short, long, userID string, uuid uint64) error {
 	urlRecord := URLRecord{
 		UUID:        strconv.FormatUint(uuid+1, 10),
 		OriginalURL: long,
 		ShortURL:    short,
-		UserID:      user.ID,
+		UserID:      userID,
 		Deleted:     false,
 	}
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
@@ -110,12 +110,7 @@ func AppendToFile(log *logger.Log, filename, short, long string, uuid uint64, us
 }
 
 func BatchAppend(
-	log *logger.Log,
-	filename,
-	baseURL string,
-	input models.BatchArray,
-	counter uint64,
-	user *models.User,
+	log *logger.Log, filename, baseURL, userID string, input models.BatchArray, counter uint64,
 ) (models.BatchArray, error) {
 	var saved models.BatchArray
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
@@ -133,7 +128,7 @@ func BatchAppend(
 			UUID:        strconv.FormatUint(counter+1, 10),
 			OriginalURL: item.OriginalURL,
 			ShortURL:    item.CorrelationID,
-			UserID:      user.ID,
+			UserID:      userID,
 			Deleted:     false,
 		}
 		data, err := json.Marshal(&row)

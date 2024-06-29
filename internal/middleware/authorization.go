@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,16 +27,17 @@ type Claims struct {
 
 type BaseAuth struct {
 	Service *service.Service
-	User    *models.User
+	//User    *models.User
 }
 
-func Auth(svc *service.Service, user *models.User) *BaseAuth {
-	return &BaseAuth{Service: svc, User: user}
+func Auth(svc *service.Service) *BaseAuth {
+	return &BaseAuth{Service: svc}
 }
 
 func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := r.Cookie("token")
+		rCtx := r.Context()
 		if err != nil {
 			if errors.Is(err, http.ErrNoCookie) {
 				newToken, err := buildJWTString(ba.Service.SecretKey)
@@ -44,7 +46,7 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 					http.Error(w, "", http.StatusInternalServerError)
 					return
 				}
-				w.Header().Set("Authorization", newToken)
+				w.Header().Set("Authorization", "Bearer "+newToken)
 				http.SetCookie(w, &http.Cookie{Name: "token", Value: newToken})
 
 				userID := getUserID(newToken, ba.Service.SecretKey, ba.Service.Log)
@@ -53,8 +55,9 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 					http.Error(w, unauthorized, http.StatusUnauthorized)
 					return
 				}
-				ba.User.ID = userID
-				next.ServeHTTP(w, r)
+				newCtx := context.WithValue(rCtx, models.CtxUserIDKey, userID)
+				rWithCtx := r.WithContext(newCtx)
+				next.ServeHTTP(w, rWithCtx)
 				return
 			}
 			ba.Service.Log.Err("failed get cookie: ", err)
@@ -68,18 +71,20 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 			http.Error(w, unauthorized, http.StatusUnauthorized)
 			return
 		}
-		ba.User.ID = userID
-		next.ServeHTTP(w, r)
+
+		//ba.User.ID = userID
+		newCtx := context.WithValue(rCtx, models.CtxUserIDKey, userID)
+		rWithCtx := r.WithContext(newCtx)
+		next.ServeHTTP(w, rWithCtx)
 	})
 }
 
 type BaseCheck struct {
-	Log  *logger.Log
-	User *models.User
+	Log *logger.Log
 }
 
-func CheckAuth(log *logger.Log, user *models.User) *BaseCheck {
-	return &BaseCheck{Log: log, User: user}
+func CheckAuth(log *logger.Log) *BaseCheck {
+	return &BaseCheck{Log: log}
 }
 func (bc *BaseCheck) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

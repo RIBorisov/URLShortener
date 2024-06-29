@@ -8,7 +8,7 @@ import (
 	"shortener/internal/service"
 )
 
-func DeleteURLsHandler(svc *service.Service, user *models.User) http.HandlerFunc {
+func DeleteURLsHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -19,7 +19,7 @@ func DeleteURLsHandler(svc *service.Service, user *models.User) http.HandlerFunc
 			return
 		}
 
-		err := svc.DeleteURLs(ctx, req, user)
+		err := svc.DeleteURLs(ctx, req)
 		if err != nil {
 			svc.Log.Err("failed to delete URLs: ", err)
 			http.Error(w, "", http.StatusInternalServerError)

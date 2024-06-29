@@ -4,15 +4,14 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"shortener/internal/models"
 	"shortener/internal/service"
 )
 
-func GetURLsHandler(svc *service.Service, user *models.User) http.HandlerFunc {
+func GetURLsHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		urls, err := svc.GetUserURLs(ctx, user)
+		urls, err := svc.GetUserURLs(ctx)
 		if err != nil {
 			svc.Log.Err("failed get user urls: ", err)
 			http.Error(w, "", http.StatusInternalServerError)

@@ -11,7 +11,7 @@ import (
 	"shortener/internal/storage"
 )
 
-func ShortenHandler(svc *service.Service, user *models.User) http.HandlerFunc {
+func ShortenHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req models.ShortenRequest
 		ctx := r.Context()
@@ -23,7 +23,7 @@ func ShortenHandler(svc *service.Service, user *models.User) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 
-		short, err := svc.SaveURL(ctx, req.URL, user)
+		short, err := svc.SaveURL(ctx, req.URL)
 		if err != nil {
 			var duplicateErr *storage.DuplicateRecordError
 			if errors.As(err, &duplicateErr) {

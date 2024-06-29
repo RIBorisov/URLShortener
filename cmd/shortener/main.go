@@ -68,18 +68,15 @@ func runBackgroundCleanupDB(ctx context.Context, store storage.URLStorage, log *
 
 	go func() {
 		ticker := time.NewTicker(interval)
-		for {
-			select {
-			case <-ticker.C:
-				urls, err := store.Cleanup(ctx)
-				if err != nil {
-					log.Err("failed cleanup storage", err)
-				}
-				if len(urls) > 0 {
-					log.Info(op+" The following url IDs were deleted from storage", "URLs", urls)
-				} else {
-					log.Info(op+" Nothing to delete. Going to sleep", "time", interval)
-				}
+		for range ticker.C {
+			urls, err := store.Cleanup(ctx)
+			if err != nil {
+				log.Err("failed cleanup storage", err)
+			}
+			if len(urls) > 0 {
+				log.Info(op+" The following url IDs were deleted from storage", "URLs", urls)
+			} else {
+				log.Info(op+" Nothing to delete. Going to sleep", "time", interval)
 			}
 		}
 	}()

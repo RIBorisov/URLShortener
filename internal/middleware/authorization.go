@@ -27,7 +27,6 @@ type Claims struct {
 
 type BaseAuth struct {
 	Service *service.Service
-	//User    *models.User
 }
 
 func Auth(svc *service.Service) *BaseAuth {
@@ -46,7 +45,7 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 					http.Error(w, "", http.StatusInternalServerError)
 					return
 				}
-				w.Header().Set("Authorization", "Bearer "+newToken)
+				w.Header().Set("Authorization", newToken)
 				http.SetCookie(w, &http.Cookie{Name: "token", Value: newToken})
 
 				userID := getUserID(newToken, ba.Service.SecretKey, ba.Service.Log)
@@ -72,7 +71,6 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		//ba.User.ID = userID
 		newCtx := context.WithValue(rCtx, models.CtxUserIDKey, userID)
 		rWithCtx := r.WithContext(newCtx)
 		next.ServeHTTP(w, rWithCtx)

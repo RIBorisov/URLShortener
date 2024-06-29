@@ -4,11 +4,11 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"shortener/internal/storage"
 
 	"github.com/go-chi/chi/v5"
 
 	"shortener/internal/service"
+	"shortener/internal/storage"
 )
 
 func GetHandler(svc *service.Service) http.HandlerFunc {

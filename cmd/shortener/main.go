@@ -4,9 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"shortener/internal/config"
@@ -44,12 +41,11 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		Log:             log,
 		SecretKey:       cfg.Service.SecretKey,
 	}
-	stopCh := make(chan struct{})
 
 	if cfg.Service.BackgroundCleanup {
 		interval := cfg.Service.BackgroundCleanupInterval
 		log.Info("starting storage cleanup task", "period", interval)
-		stopCh = runBackgroundCleanupDB(ctx, store, log, interval)
+		runBackgroundCleanupDB(ctx, store, log, interval)
 	}
 
 	r := handlers.NewRouter(svc)
@@ -64,24 +60,11 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		slog.String("BaseURL", cfg.Service.BaseURL),
 	)
 
-	// Создаем канал для передачи сигналов об остановке
-	sigs := make(chan os.Signal, 1)
-	// Регистрируем обработчик сигналов
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		sig := <-sigs
-		log.Info("Received signal", "signal", sig.String())
-		stopCh <- struct{}{}
-	}()
-
 	return srv.ListenAndServe()
 }
 
-func runBackgroundCleanupDB(
-	ctx context.Context, store storage.URLStorage, log *logger.Log, interval time.Duration,
-) chan struct{} {
+func runBackgroundCleanupDB(ctx context.Context, store storage.URLStorage, log *logger.Log, interval time.Duration) {
 	const op = "background cleanup task."
-	stopCh := make(chan struct{})
 
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -97,13 +80,7 @@ func runBackgroundCleanupDB(
 				} else {
 					log.Info(op+" Nothing to delete. Going to sleep", "time", interval)
 				}
-			case <-stopCh:
-				log.Info("Stopping " + op)
-				ticker.Stop()
-				return
 			}
 		}
 	}()
-
-	return stopCh
 }

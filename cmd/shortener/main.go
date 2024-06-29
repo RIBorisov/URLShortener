@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
+
 	"shortener/internal/config"
 	"shortener/internal/handlers"
 	"shortener/internal/logger"
@@ -16,7 +18,7 @@ func main() {
 	log.Initialize("INFO")
 	ctx := context.Background()
 	if err := initApp(ctx, log); err != nil {
-		log.Fatal("unexpected error occurred when initializing application: ", err)
+		log.Fatal("unexpected error occurred when initializing application", err)
 	}
 }
 
@@ -37,6 +39,13 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		FileStoragePath: cfg.Service.FileStoragePath,
 		DatabaseDSN:     cfg.Service.DatabaseDSN,
 		Log:             log,
+		SecretKey:       cfg.Service.SecretKey,
+	}
+
+	if cfg.Service.BackgroundCleanup {
+		interval := cfg.Service.BackgroundCleanupInterval
+		log.Info("starting storage cleanup task", "period", interval)
+		runBackgroundCleanupDB(ctx, store, log, interval)
 	}
 
 	r := handlers.NewRouter(svc)
@@ -50,5 +59,25 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		slog.String("host", cfg.Service.ServerAddress),
 		slog.String("BaseURL", cfg.Service.BaseURL),
 	)
+
 	return srv.ListenAndServe()
+}
+
+func runBackgroundCleanupDB(ctx context.Context, store storage.URLStorage, log *logger.Log, interval time.Duration) {
+	const op = "background cleanup task."
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		for range ticker.C {
+			urls, err := store.Cleanup(ctx)
+			if err != nil {
+				log.Err("failed cleanup storage", err)
+			}
+			if len(urls) > 0 {
+				log.Info(op+" The following url IDs were deleted from storage", "URLs", urls)
+			} else {
+				log.Info(op+" Nothing to delete. Going to sleep", "time", interval)
+			}
+		}
+	}()
 }

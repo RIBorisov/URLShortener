@@ -1,9 +1,0 @@
-SET ROLE TO odmen;
-
-SELECT current_user;
-
-CREATE TABLE IF NOT EXISTS urls (
-    id SERIAL PRIMARY KEY,
-    short TEXT NOT NULL UNIQUE,
-    long TEXT NOT NULL UNIQUE
-);

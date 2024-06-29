@@ -15,17 +15,17 @@ func allowedContentType(header string) bool {
 	return ok
 }
 
-type GzipMW struct {
+type BaseMW struct {
 	Log *logger.Log
 }
 
-func NewGzipMiddleware(log *logger.Log) *GzipMW {
-	return &GzipMW{
+func Gzip(log *logger.Log) *BaseMW {
+	return &BaseMW{
 		Log: log,
 	}
 }
 
-func (ng *GzipMW) GzipMiddleware(next http.Handler) http.Handler {
+func (ng *BaseMW) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ow := w
 		acceptEncoding := r.Header.Get("Accept-Encoding")

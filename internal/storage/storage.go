@@ -319,7 +319,7 @@ func (m *inMemory) Save(ctx context.Context, shortLink, longLink string) error {
 	}
 	defer m.mux.Unlock()
 	m.urls[shortLink] = URLRecord{
-		UUID:        fmt.Sprintf("%v", m.counter),
+		UUID:        strconv.FormatUint(m.counter, 10),
 		OriginalURL: longLink,
 		ShortURL:    shortLink,
 		UserID:      userID,
@@ -349,12 +349,11 @@ func (m *inMemory) BatchSave(ctx context.Context, input models.BatchArray) (mode
 	return result, nil
 }
 
-// Cleanup if is_deleted=false, makes new map, overwrites file and returns a slice of strings
+// Cleanup if is_deleted=false, makes new map, overwrites file and returns a slice of strings.
 func (f *inFile) Cleanup(_ context.Context) ([]string, error) {
 	urls := make([]URLRecord, 0)
 	f.mux.Lock()
 	for _, u := range f.inMemory.urls {
-		fmt.Printf("\nЩА КАК ЗАПИШУ u.UUID: %v\n", u.UUID)
 		if !u.Deleted {
 			urls = append(urls, URLRecord{
 				UUID:        u.UUID,

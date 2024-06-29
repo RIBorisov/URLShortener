@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -78,7 +77,9 @@ func initApp(ctx context.Context, log *logger.Log) error {
 	return srv.ListenAndServe()
 }
 
-func runBackgroundCleanupDB(ctx context.Context, store storage.URLStorage, log *logger.Log, interval time.Duration) chan struct{} {
+func runBackgroundCleanupDB(
+	ctx context.Context, store storage.URLStorage, log *logger.Log, interval time.Duration,
+) chan struct{} {
 	const op = "background cleanup task."
 	stopCh := make(chan struct{})
 
@@ -92,9 +93,9 @@ func runBackgroundCleanupDB(ctx context.Context, store storage.URLStorage, log *
 					log.Err("failed cleanup storage", err)
 				}
 				if len(urls) > 0 {
-					log.Info(fmt.Sprintf("%s The following url IDs were deleted from storage", op), "URLs", urls)
+					log.Info(op+" The following url IDs were deleted from storage", "URLs", urls)
 				} else {
-					log.Info(fmt.Sprintf("%s Nothing to delete. Going to sleep", op), "time", interval)
+					log.Info(op+" Nothing to delete. Going to sleep", "time", interval)
 				}
 			case <-stopCh:
 				log.Info("Stopping " + op)

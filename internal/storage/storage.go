@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"sync"
 
 	"github.com/jackc/pgerrcode"
@@ -43,6 +44,25 @@ type URLStorage interface {
 	BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error)
 	GetByUserID(ctx context.Context) ([]models.BaseRow, error)
 	DeleteURLs(ctx context.Context, input models.DeleteURLs) error
+	Cleanup(ctx context.Context) ([]string, error)
+}
+
+func (d *inDatabase) Cleanup(ctx context.Context) ([]string, error) {
+	const stmt = `DELETE FROM urls WHERE is_deleted = TRUE RETURNING id`
+	result := make([]string, 0)
+	rows, err := d.pool.Query(ctx, stmt)
+	if err != nil {
+		return nil, fmt.Errorf("failed query db: %w", err)
+	}
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed scan id from row: %w", err)
+		}
+		result = append(result, id)
+	}
+
+	return result, nil
 }
 
 func (d *inDatabase) DeleteURLs(ctx context.Context, input models.DeleteURLs) error {
@@ -216,6 +236,18 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (mo
 	return resp, nil
 }
 
+func (m *inMemory) Cleanup(_ context.Context) ([]string, error) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	cleaned := make([]string, 0)
+	for _, u := range m.urls {
+		if u.Deleted {
+			cleaned = append(cleaned, u.ShortURL)
+			delete(m.urls, u.ShortURL)
+		}
+	}
+	return cleaned, nil
+}
 func (m *inMemory) GetByUserID(ctx context.Context) ([]models.BaseRow, error) {
 	var data []models.BaseRow
 	m.mux.Lock()
@@ -287,6 +319,7 @@ func (m *inMemory) Save(ctx context.Context, shortLink, longLink string) error {
 	}
 	defer m.mux.Unlock()
 	m.urls[shortLink] = URLRecord{
+		UUID:        fmt.Sprintf("%v", m.counter),
 		OriginalURL: longLink,
 		ShortURL:    shortLink,
 		UserID:      userID,
@@ -316,6 +349,34 @@ func (m *inMemory) BatchSave(ctx context.Context, input models.BatchArray) (mode
 	return result, nil
 }
 
+// Cleanup if is_deleted=false, makes new map, overwrites file and returns a slice of strings
+func (f *inFile) Cleanup(_ context.Context) ([]string, error) {
+	urls := make([]URLRecord, 0)
+	f.mux.Lock()
+	for _, u := range f.inMemory.urls {
+		fmt.Printf("\nЩА КАК ЗАПИШУ u.UUID: %v\n", u.UUID)
+		if !u.Deleted {
+			urls = append(urls, URLRecord{
+				UUID:        u.UUID,
+				OriginalURL: u.OriginalURL,
+				ShortURL:    u.ShortURL,
+				UserID:      u.UserID,
+				Deleted:     u.Deleted,
+			})
+		}
+	}
+	f.mux.Unlock()
+
+	if err := BatchUpdate(f.filePath, urls); err != nil {
+		return nil, fmt.Errorf("failed batch update: %w", err)
+	}
+	result := make([]string, 0, len(urls))
+	for _, u := range urls {
+		result = append(result, u.ShortURL)
+	}
+
+	return result, nil
+}
 func (f *inFile) Save(ctx context.Context, shortLink, longLink string) error {
 	f.mux.Lock()
 	userID, ok := ctx.Value(models.CtxUserIDKey).(string)
@@ -323,8 +384,15 @@ func (f *inFile) Save(ctx context.Context, shortLink, longLink string) error {
 		return errGetUserFromContext
 	}
 	defer f.mux.Unlock()
-	f.urls[shortLink] = URLRecord{OriginalURL: longLink, UserID: userID, ShortURL: shortLink}
-	err := AppendToFile(f.Log, f.filePath, shortLink, longLink, userID, f.counter)
+	urlRecord := URLRecord{
+		UUID:        strconv.FormatUint(f.counter+1, 10),
+		OriginalURL: longLink,
+		UserID:      userID,
+		ShortURL:    shortLink,
+	}
+	f.urls[shortLink] = urlRecord
+
+	err := AppendToFile(f.Log, f.filePath, urlRecord)
 	if err != nil {
 		return fmt.Errorf("failed append to file: %w", err)
 	}

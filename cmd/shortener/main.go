@@ -2,8 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"shortener/internal/config"
 	"shortener/internal/handlers"
 	"shortener/internal/logger"
@@ -16,7 +22,7 @@ func main() {
 	log.Initialize("INFO")
 	ctx := context.Background()
 	if err := initApp(ctx, log); err != nil {
-		log.Fatal("unexpected error occurred when initializing application: ", err)
+		log.Fatal("unexpected error occurred when initializing application", err)
 	}
 }
 
@@ -39,6 +45,13 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		Log:             log,
 		SecretKey:       cfg.Service.SecretKey,
 	}
+	stopCh := make(chan struct{})
+
+	if cfg.Service.BackgroundCleanup {
+		interval := cfg.Service.BackgroundCleanupInterval
+		log.Info("starting storage cleanup task", "period", interval)
+		stopCh = runBackgroundCleanupDB(ctx, store, log, interval)
+	}
 
 	r := handlers.NewRouter(svc)
 
@@ -51,5 +64,45 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		slog.String("host", cfg.Service.ServerAddress),
 		slog.String("BaseURL", cfg.Service.BaseURL),
 	)
+
+	// Создаем канал для передачи сигналов об остановке
+	sigs := make(chan os.Signal, 1)
+	// Регистрируем обработчик сигналов
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		log.Info("Received signal", "signal", sig.String())
+		stopCh <- struct{}{}
+	}()
+
 	return srv.ListenAndServe()
+}
+
+func runBackgroundCleanupDB(ctx context.Context, store storage.URLStorage, log *logger.Log, interval time.Duration) chan struct{} {
+	const op = "background cleanup task."
+	stopCh := make(chan struct{})
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		for {
+			select {
+			case <-ticker.C:
+				urls, err := store.Cleanup(ctx)
+				if err != nil {
+					log.Err("failed cleanup storage", err)
+				}
+				if len(urls) > 0 {
+					log.Info(fmt.Sprintf("%s The following url IDs were deleted from storage", op), "URLs", urls)
+				} else {
+					log.Info(fmt.Sprintf("%s Nothing to delete. Going to sleep", op), "time", interval)
+				}
+			case <-stopCh:
+				log.Info("Stopping " + op)
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
+	return stopCh
 }

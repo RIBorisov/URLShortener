@@ -77,12 +77,12 @@ func ReadFileStorage(filename string) (map[string]URLRecord, error) {
 	return URLs, nil
 }
 
-func AppendToFile(log *logger.Log, filename, short, long, userID string, uuid uint64) error {
-	urlRecord := URLRecord{
-		UUID:        strconv.FormatUint(uuid+1, 10),
-		OriginalURL: long,
-		ShortURL:    short,
-		UserID:      userID,
+func AppendToFile(log *logger.Log, filename string, urlRecord URLRecord) error {
+	urlRow := URLRecord{
+		UUID:        urlRecord.UUID,
+		OriginalURL: urlRecord.OriginalURL,
+		ShortURL:    urlRecord.ShortURL,
+		UserID:      urlRecord.UserID,
 		Deleted:     false,
 	}
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
@@ -95,7 +95,7 @@ func AppendToFile(log *logger.Log, filename, short, long, userID string, uuid ui
 			log.Err("failed to close file", err)
 		}
 	}()
-	data, err := json.Marshal(&urlRecord)
+	data, err := json.Marshal(&urlRow)
 	if err != nil {
 		return fmt.Errorf("failed to marshal url record %w", err)
 	}

@@ -43,6 +43,10 @@ func (m *MockDB) DeleteURLs(_ context.Context, _ models.DeleteURLs) error {
 	return nil
 }
 
+func (m *MockDB) Cleanup(_ context.Context) ([]string, error) {
+	return nil, nil
+}
+
 func (m *MockDB) Close() error {
 	return nil
 }

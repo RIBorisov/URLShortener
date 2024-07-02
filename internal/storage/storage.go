@@ -149,7 +149,7 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, error) 
 
 func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error {
 	const (
-		longConstraint = "idx_long_url"
+		longConstraint = "idx_long_is_not_deleted"
 		selectStmt     = `SELECT short FROM urls WHERE long = $1`
 		insertStmt     = `INSERT INTO urls (short, long, user_id) VALUES ($1, $2, $3)`
 	)

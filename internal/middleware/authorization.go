@@ -37,17 +37,28 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := r.Cookie("token")
 		rCtx := r.Context()
-		if err != nil && errors.Is(err, http.ErrNoCookie) {
-			newToken, err := buildJWTString(ba.Service.SecretKey)
-			if err != nil {
-				ba.Service.Log.Err("failed build JWTString: ", err)
-				http.Error(w, "", http.StatusInternalServerError)
+		if err != nil {
+			if errors.Is(err, http.ErrNoCookie) {
+				newToken, err := buildJWTString(ba.Service.SecretKey)
+				if err != nil {
+					ba.Service.Log.Err("failed build JWTString: ", err)
+					http.Error(w, "", http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Authorization", newToken)
+				http.SetCookie(w, &http.Cookie{Name: "token", Value: newToken})
+
+				userID := getUserID(newToken, ba.Service.SecretKey, ba.Service.Log)
+				if userID == "" {
+					ba.Service.Log.Err(unauthorized, "no userID")
+					http.Error(w, unauthorized, http.StatusUnauthorized)
+					return
+				}
+				newCtx := context.WithValue(rCtx, models.CtxUserIDKey, userID)
+				rWithCtx := r.WithContext(newCtx)
+				next.ServeHTTP(w, rWithCtx)
 				return
 			}
-			w.Header().Set("Authorization", newToken)
-			http.SetCookie(w, &http.Cookie{Name: "token", Value: newToken})
-			token = &http.Cookie{Name: "token", Value: newToken}
-		} else if err != nil {
 			ba.Service.Log.Err("failed get cookie: ", err)
 			http.Error(w, "", http.StatusInternalServerError)
 			return
@@ -59,6 +70,7 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 			http.Error(w, unauthorized, http.StatusUnauthorized)
 			return
 		}
+
 		newCtx := context.WithValue(rCtx, models.CtxUserIDKey, userID)
 		rWithCtx := r.WithContext(newCtx)
 		next.ServeHTTP(w, rWithCtx)

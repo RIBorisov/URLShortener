@@ -22,10 +22,11 @@ golangci-lint-clean:
 	sudo rm -rf ./golangci-lint
 
 # миграции
+DSN=postgres://shortenerodmen:shortenerodmen@172.18.0.2:5432/urlshortener?sslmode=disable
 .PHONY: migration
 migration: #  example: make migration name=add-smth
 	docker run --rm \
-    -v $(realpath ./internal/db/migrations):/migrations \
+    -v $(realpath ./internal/storage/migrations):/migrations \
     migrate/migrate:v4.16.2 \
         create \
         -dir /migrations \
@@ -36,53 +37,17 @@ migration: #  example: make migration name=add-smth
 .PHONY: db-upgrade
 db-upgrade:
 	docker run --rm \
-    -v $(realpath ./internal/db/migrations):/migrations \
+    -v $(realpath ./internal/storage/migrations):/migrations \
     migrate/migrate:v4.16.2 \
         -path=/migrations \
-        -database postgres://shortenerodmen:shortenerodmen@172.21.0.2:5432/urlshortener?sslmode=disable \
+        -database $(DSN) \
         up
 
 .PHONY: db-downgrade
 db-downgrade:
 	docker run --rm \
-    -v $(realpath ./internal/db/migrations):/migrations \
+    -v $(realpath ./internal/storage/migrations):/migrations \
     migrate/migrate:v4.16.2 \
         -path=/migrations \
-        -database postgres://shortenerodmen:shortenerodmen@172.21.0.2:5432/urlshortener?sslmode=disable \
+        -database $(DSN) \
         down
-
-.PHONY: db-upgrade-all
-db-upgrade-all:
-	docker run --rm \
-    -v $(realpath ./internal/db/migrations):/migrations \
-    migrate/migrate:v4.16.2 \
-        -path=/migrations \
-        -database postgres://shortenerodmen:shortenerodmen@172.21.0.2:5432/urlshortener?sslmode=disable \
-        up -all
-
-.PHONY: db-downgrade-all
-db-downgrade-all:
-	docker run --rm \
-    -v $(realpath ./internal/db/migrations):/migrations \
-    migrate/migrate:v4.16.2 \
-        -path=/migrations \
-        -database postgres://shortenerodmen:shortenerodmen@172.21.0.2:5432/urlshortener?sslmode=disable \
-        down -all
-
-
-.PHONY: db-upgrade-to # usage: make db-downgrade-to number=1
-db-upgrade-to:
-	docker run --rm \
-    -v $(realpath ./internal/db/migrations-careful):/migrations \
-    migrate/migrate:v4.16.2 \
-        -path=/migrations \
-        -database postgres://shortenerodmen:shortenerodmen@172.21.0.2:5432/urlshortener?sslmode=disable \
-        up $(number)
-.PHONY: db-downgrade-to # usage: make db-downgrade-to number=1
-db-downgrade-to:
-	docker run --rm \
-    -v $(realpath ./internal/db/migrations-careful):/migrations \
-    migrate/migrate:v4.16.2 \
-        -path=/migrations \
-        -database postgres://shortenerodmen:shortenerodmen@172.21.0.2:5432/urlshortener?sslmode=disable \
-        down $(number)

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS urls (
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_long_url ON urls (long);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_long_is_not_deleted ON urls (long) WHERE is_deleted = FALSE;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_short_is_not_deleted ON urls (short) WHERE is_deleted = FALSE;
 

@@ -250,11 +250,11 @@ func (m *inMemory) Cleanup(_ context.Context) ([]string, error) {
 }
 func (m *inMemory) GetByUserID(ctx context.Context) ([]models.BaseRow, error) {
 	var data []models.BaseRow
-	m.mux.Lock()
 	userID, ok := ctx.Value(models.CtxUserIDKey).(string)
 	if !ok {
 		return nil, errGetUserFromContext
 	}
+	m.mux.Lock()
 	defer m.mux.Unlock()
 	for _, u := range m.urls {
 		if userID == u.UserID && !u.Deleted {

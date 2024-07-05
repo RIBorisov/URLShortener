@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net/url"
+
 	"shortener/internal/logger"
 	"shortener/internal/models"
 	"shortener/internal/storage"
@@ -16,6 +18,7 @@ type Service struct {
 	FileStoragePath string
 	BaseURL         string
 	DatabaseDSN     string
+	SecretKey       string
 }
 
 func (s *Service) SaveURL(ctx context.Context, long string) (string, error) {
@@ -51,6 +54,15 @@ func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest) (mo
 	return resp, nil
 }
 
+func (s *Service) DeleteURLs(ctx context.Context, input models.DeleteURLs) error {
+	err := s.Storage.DeleteURLs(ctx, input)
+	if err != nil {
+		return fmt.Errorf("failed to delete URLs: %w", err)
+	}
+
+	return nil
+}
+
 func (s *Service) generateUniqueShortLink(ctx context.Context) string {
 	const length = 8
 	var uniqString string
@@ -69,16 +81,6 @@ func (s *Service) generateUniqueShortLink(ctx context.Context) string {
 	return uniqString
 }
 
-func generateRandomString(length int) string {
-	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	randomString := make([]byte, length)
-	// generate a random string
-	for i := range randomString {
-		randomString[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(randomString)
-}
-
 func (s *Service) convertData(ctx context.Context, input []models.BatchRequest) models.BatchArray {
 	res := make(models.BatchArray, 0)
 	for _, item := range input {
@@ -90,4 +92,29 @@ func (s *Service) convertData(ctx context.Context, input []models.BatchRequest) 
 		})
 	}
 	return res
+}
+func (s *Service) GetUserURLs(ctx context.Context) (models.UserURLs, error) {
+	data, err := s.Storage.GetByUserID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed get urls by userID: %w", err)
+	}
+	userURLs := make(models.UserURLs, 0)
+	for _, item := range data {
+		short, err := url.JoinPath(s.BaseURL, "/", item.Short)
+		if err != nil {
+			return nil, fmt.Errorf("failed join url for short: %w", err)
+		}
+		userURLs = append(userURLs, models.URL{ShortURL: short, OriginalURL: item.Long})
+	}
+	return userURLs, nil
+}
+
+func generateRandomString(length int) string {
+	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	randomString := make([]byte, length)
+	// generate a random string
+	for i := range randomString {
+		randomString[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(randomString)
 }

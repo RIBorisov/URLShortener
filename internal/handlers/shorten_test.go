@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"shortener/internal/logger"
+	"shortener/internal/models"
 	"strings"
 	"testing"
 
@@ -25,6 +26,7 @@ func TestShortenHandler(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.LoadConfig()
 	log := &logger.Log{}
+	userID := "123"
 	log.Initialize("INFO")
 	s, err := storage.LoadStorage(ctx, cfg, log)
 	assert.NoError(t, err)
@@ -59,7 +61,9 @@ func TestShortenHandler(t *testing.T) {
 			reqBody := strings.NewReader(tc.body)
 			r := httptest.NewRequest(tc.method, route, reqBody)
 			w := httptest.NewRecorder()
-			router.ServeHTTP(w, r)
+			oldCtx := r.Context()
+			rWithCtx := r.WithContext(context.WithValue(oldCtx, models.CtxUserIDKey, userID))
+			router.ServeHTTP(w, rWithCtx)
 			res := w.Result()
 			resBody, err := io.ReadAll(res.Body)
 			assert.NoError(t, err)

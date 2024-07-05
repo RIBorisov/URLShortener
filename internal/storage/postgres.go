@@ -2,13 +2,16 @@ package storage
 
 import (
 	"context"
-	"database/sql"
+	"embed"
 	"errors"
 	"fmt"
-	"shortener/internal/logger"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"shortener/internal/logger"
 )
 
 type DBStore struct {
@@ -35,49 +38,35 @@ func initPool(ctx context.Context, log *logger.Log, dsn string) (*pgxpool.Pool, 
 }
 
 func New(ctx context.Context, dsn string, log *logger.Log) (*DBStore, error) {
+	if err := runMigrations(dsn); err != nil {
+		return nil, fmt.Errorf("failed to run DB migrations: %w", err)
+	}
+
 	pool, err := initPool(ctx, log, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init pool: %w", err)
 	}
 
-	if err = prepareDatabase(ctx, pool, log); err != nil {
-		return nil, fmt.Errorf("failed to prepare database: %w", err)
-	}
-
 	return &DBStore{pool}, nil
 }
 
-func prepareDatabase(ctx context.Context, db *pgxpool.Pool, log *logger.Log) error {
-	const (
-		tableStmt = `CREATE TABLE IF NOT EXISTS urls (
-    id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    short VARCHAR(200) NOT NULL UNIQUE,
-    long VARCHAR(200) NOT NULL
-);`
-		idxStmt = `CREATE UNIQUE INDEX IF NOT EXISTS idx_long_url ON urls (long);`
-	)
-	tx, err := db.BeginTx(ctx, pgx.TxOptions{IsoLevel: "read committed"})
-	if err != nil {
-		return fmt.Errorf("failed to begin the transaction: %w", err)
-	}
-	defer func() {
-		if err = tx.Rollback(ctx); err != nil {
-			if !errors.Is(err, sql.ErrTxDone) {
-				log.Err("failed to rollback the transaction: ", err)
-			}
-		}
-	}()
+//go:embed migrations/*.sql
+var migrationsDir embed.FS
 
-	_, err = tx.Exec(ctx, tableStmt)
+func runMigrations(dsn string) error {
+	d, err := iofs.New(migrationsDir, "migrations")
 	if err != nil {
-		return fmt.Errorf("failed to create table: %w", err)
+		return fmt.Errorf("failed to return an iofs driver: %w", err)
 	}
-	_, err = tx.Exec(ctx, idxStmt)
+
+	m, err := migrate.NewWithSourceInstance("iofs", d, dsn)
 	if err != nil {
-		return fmt.Errorf("failed to set index on field long: %w", err)
+		return fmt.Errorf("failed to get a new migrate instance: %w", err)
 	}
-	if err = tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit the transaction: %w", err)
+	if err := m.Up(); err != nil {
+		if !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("failed to apply migrations to the DB: %w", err)
+		}
 	}
 
 	return nil

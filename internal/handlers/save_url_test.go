@@ -83,3 +83,25 @@ func TestSaveHandler(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkSaveHandler(b *testing.B) {
+	cfg := config.LoadConfig()
+	ctx := context.Background()
+	userID := "100500"
+	log := &logger.Log{}
+	log.Initialize("INFO")
+	s, _ := storage.LoadStorage(ctx, cfg, log)
+	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
+
+	router := chi.NewRouter()
+	router.Post("/", SaveHandler(svc))
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://dzen.ru"))
+	oldCtx := r.Context()
+	rWithCtx := r.WithContext(context.WithValue(oldCtx, models.CtxUserIDKey, userID))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, rWithCtx)
+	}
+}

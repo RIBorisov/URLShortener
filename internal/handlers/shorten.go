@@ -11,6 +11,7 @@ import (
 	"shortener/internal/storage"
 )
 
+// ShortenHandler represents a handler for saving short URL requests.
 func ShortenHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req models.ShortenRequest

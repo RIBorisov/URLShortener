@@ -1,4 +1,5 @@
 # go-musthave-shortener-tpl
+[![Coverage Status](https://img.shields.io/badge/coverage-44.8%25-brightgreen)](https://github.com/RIBorisov/gophermart/coverage.html)
 
 Шаблон репозитория для трека «Сервис сокращения URL».
 

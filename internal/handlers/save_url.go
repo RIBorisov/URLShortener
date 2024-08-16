@@ -5,10 +5,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
 	"shortener/internal/service"
 	"shortener/internal/storage"
 )
 
+// SaveHandler represents a handler for save URL requests.
 func SaveHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

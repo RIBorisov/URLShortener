@@ -8,6 +8,7 @@ import (
 	"shortener/internal/service"
 )
 
+// DeleteURLsHandler represents a handler for delete URL requests.
 func DeleteURLsHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

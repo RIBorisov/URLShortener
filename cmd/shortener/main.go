@@ -1,9 +1,11 @@
+// Package main contains the main entry point for the URL shortener application.
 package main
 
 import (
 	"context"
 	"log/slog"
 	"net/http"
+	_ "net/http/pprof"
 	"time"
 
 	"shortener/internal/config"
@@ -13,6 +15,7 @@ import (
 	"shortener/internal/storage"
 )
 
+// main is the entry point for the URL shortener application.
 func main() {
 	log := &logger.Log{}
 	log.Initialize("INFO")
@@ -22,6 +25,9 @@ func main() {
 	}
 }
 
+// initApp initializes the URL shortener application.
+//
+// It loads the configuration, initializes the storage, and starts the HTTP server.
 func initApp(ctx context.Context, log *logger.Log) error {
 	cfg := config.LoadConfig()
 	store, err := storage.LoadStorage(ctx, cfg, log)
@@ -33,6 +39,7 @@ func initApp(ctx context.Context, log *logger.Log) error {
 			log.Err("failed to close the connection: ", err)
 		}
 	}()
+
 	svc := &service.Service{
 		Storage:         store,
 		BaseURL:         cfg.Service.BaseURL,
@@ -63,7 +70,10 @@ func initApp(ctx context.Context, log *logger.Log) error {
 	return srv.ListenAndServe()
 }
 
-func runBackgroundCleanupDB(ctx context.Context, store storage.URLStorage, log *logger.Log, interval time.Duration) {
+// runBackgroundCleanupDB runs a background task to clean up the storage periodically.
+//
+// It uses a ticker to schedule the cleanup at the specified interval.
+func runBackgroundCleanupDB(ctx context.Context, store service.URLStorage, log *logger.Log, interval time.Duration) {
 	const op = "background cleanup task."
 
 	go func() {

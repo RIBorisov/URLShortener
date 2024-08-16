@@ -15,6 +15,7 @@ const (
 	backgroundCleanup = "BACKGROUND_CLEANUP"
 )
 
+// ServiceConfig contains common config entities.
 type ServiceConfig struct {
 	ServerAddress             string `env:"SERVER_ADDRESS" env-default:":8080"`
 	BaseURL                   string `env:"BASE_URL" env-default:"http://localhost:8080"`
@@ -25,15 +26,18 @@ type ServiceConfig struct {
 	BackgroundCleanupInterval time.Duration
 }
 
+// URLDetail contains default url length.
 type URLDetail struct {
 	Length int `env:"URL_LENGTH" env-default:"8"`
 }
 
+// Config contains main config structures.
 type Config struct {
 	Service ServiceConfig
 	URL     URLDetail
 }
 
+// LoadConfig loads the config.
 func LoadConfig() *Config {
 	var cfg Config
 	f := parseFlags()

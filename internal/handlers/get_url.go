@@ -11,6 +11,7 @@ import (
 	"shortener/internal/storage"
 )
 
+// GetHandler handles the getting of URLs.
 func GetHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

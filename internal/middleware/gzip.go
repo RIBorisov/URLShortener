@@ -17,10 +17,12 @@ func newCompressWriter(w http.ResponseWriter) *compressWriter {
 	return &compressWriter{w, gzip.NewWriter(w)}
 }
 
+// Write writes data to the gzip-compressed response writer.
 func (c *compressWriter) Write(p []byte) (int, error) {
 	return c.zw.Write(p)
 }
 
+// WriteHeader sets the HTTP status code and headers for the gzip-compressed response writer.
 func (c *compressWriter) WriteHeader(statusCode int) {
 	const gzipThreshold = 300
 	if statusCode < gzipThreshold || statusCode == http.StatusConflict {
@@ -29,6 +31,7 @@ func (c *compressWriter) WriteHeader(statusCode int) {
 	c.ResponseWriter.WriteHeader(statusCode)
 }
 
+// Close closes the gzip-compressed response writer.
 func (c *compressWriter) Close() error {
 	return c.zw.Close()
 }
@@ -50,10 +53,12 @@ func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 	}, nil
 }
 
+// Read reads data from the gzip-compressed request reader.
 func (c compressReader) Read(p []byte) (int, error) {
 	return c.zr.Read(p)
 }
 
+// Close closes the gzip-compressed request reader.
 func (c *compressReader) Close() error {
 	err1 := c.r.Close()
 	err2 := c.zr.Close()

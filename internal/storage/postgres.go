@@ -14,6 +14,7 @@ import (
 	"shortener/internal/logger"
 )
 
+// DBStore connect pool.
 type DBStore struct {
 	pool *pgxpool.Pool
 }
@@ -37,6 +38,7 @@ func initPool(ctx context.Context, log *logger.Log, dsn string) (*pgxpool.Pool, 
 	return pool, nil
 }
 
+// New creates new DBStore.
 func New(ctx context.Context, dsn string, log *logger.Log) (*DBStore, error) {
 	if err := runMigrations(dsn); err != nil {
 		return nil, fmt.Errorf("failed to run DB migrations: %w", err)

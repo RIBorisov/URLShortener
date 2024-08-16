@@ -1,0 +1,464 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>handlers: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">shortener/internal/handlers/batch.go (44.8%)</option>
+				
+				<option value="file1">shortener/internal/handlers/delete_urls.go (68.4%)</option>
+				
+				<option value="file2">shortener/internal/handlers/get_url.go (83.3%)</option>
+				
+				<option value="file3">shortener/internal/handlers/ping.go (100.0%)</option>
+				
+				<option value="file4">shortener/internal/handlers/router.go (0.0%)</option>
+				
+				<option value="file5">shortener/internal/handlers/save_url.go (42.9%)</option>
+				
+				<option value="file6">shortener/internal/handlers/shorten.go (46.7%)</option>
+				
+				<option value="file7">shortener/internal/handlers/user_urls.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "net/http"
+
+        "shortener/internal/models"
+        "shortener/internal/service"
+)
+
+// BatchHandler represents a handler for batch URL shortening requests.
+// It handles HTTP POST requests to the /api/shorten/batch endpoint,
+// decoding the request body into a slice of BatchRequest objects.
+// If the request body is empty or cannot be decoded, it returns an appropriate error response.
+// Otherwise, it calls the SaveURLs method of the service to save the URLs and returns the saved URLs in JSON format.
+//
+// Example usage:
+//
+// ```go
+// handler := BatchHandler(svc)
+// http.Handle("/api/shorten/batch", handler)
+// ```.
+func BatchHandler(svc *service.Service) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                var req []models.BatchRequest
+
+                ctx := r.Context()
+                decoder := json.NewDecoder(r.Body)
+                if err := decoder.Decode(&amp;req); err != nil </span><span class="cov8" title="1">{
+                        svc.Log.Err("failed to decode request body: ", err)
+                        w.WriteHeader(http.StatusInternalServerError)
+                        return
+                }</span>
+                <span class="cov8" title="1">defer func() </span><span class="cov8" title="1">{
+                        if err := r.Body.Close(); err != nil </span><span class="cov0" title="0">{
+                                svc.Log.Err("failed to close request body: ", err)
+                                http.Error(w, "", http.StatusInternalServerError)
+                                return
+                        }</span>
+                }()
+                <span class="cov8" title="1">if len(req) == 0 </span><span class="cov8" title="1">{
+                        http.Error(w, "Empty request batch", http.StatusBadRequest)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">saved, err := svc.SaveURLs(ctx, req)
+                if err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to save urls: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+                w.WriteHeader(http.StatusCreated)
+                enc := json.NewEncoder(w)
+                err = enc.Encode(saved)
+                if err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to encode response: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "net/http"
+
+        "shortener/internal/models"
+        "shortener/internal/service"
+)
+
+// DeleteURLsHandler handles the deletion of URLs.
+func DeleteURLsHandler(svc *service.Service) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                ctx := r.Context()
+
+                var req models.DeleteURLs
+                if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to decode request body: ", err)
+                        w.WriteHeader(http.StatusInternalServerError)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">err := svc.DeleteURLs(ctx, req)
+                if err != nil </span><span class="cov8" title="1">{
+                        svc.Log.Err("failed to delete URLs: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+                w.WriteHeader(http.StatusAccepted)
+                err = json.NewEncoder(w).Encode(req)
+                if err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to encode response body: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package handlers
+
+import (
+        "errors"
+        "net/http"
+        "net/url"
+
+        "github.com/go-chi/chi/v5"
+
+        "shortener/internal/service"
+        "shortener/internal/storage"
+)
+
+func GetHandler(svc *service.Service) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                ctx := r.Context()
+                short := chi.URLParam(r, "id")
+                long, err := svc.GetURL(ctx, short)
+                if err != nil </span><span class="cov8" title="1">{
+                        if errors.Is(err, storage.ErrURLDeleted) </span><span class="cov8" title="1">{
+                                svc.Log.Info("requested deleted url", "short", short)
+                                w.WriteHeader(http.StatusGone)
+                        }</span> else<span class="cov8" title="1"> {
+                                svc.Log.Err("failed to get URL: ", err)
+                                w.WriteHeader(http.StatusBadRequest)
+                        }</span>
+                        <span class="cov8" title="1">return</span>
+                }
+                <span class="cov8" title="1">origin, err := url.JoinPath(svc.BaseURL, short)
+                if err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to join path to get redirect URL: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+                <span class="cov8" title="1">w.Header().Set("Location", origin)
+                http.Redirect(w, r, long, http.StatusTemporaryRedirect)</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package handlers
+
+import (
+        "net/http"
+
+        "shortener/internal/service"
+)
+
+func PingHandler(svc *service.Service) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                ctx := r.Context()
+                if err := svc.Storage.Ping(ctx); err != nil </span><span class="cov8" title="1">{
+                        svc.Log.Err("failed to ping Pool: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package handlers
+
+import (
+        "github.com/go-chi/chi/v5"
+        "github.com/go-chi/chi/v5/middleware"
+
+        mw "shortener/internal/middleware"
+        "shortener/internal/service"
+)
+
+func NewRouter(svc *service.Service) *chi.Mux <span class="cov0" title="0">{
+        router := chi.NewRouter()
+
+        router.Use(middleware.Recoverer)
+        router.Use(mw.Auth(svc).Middleware)
+        router.Use(mw.Gzip(svc.Log).Middleware)
+        router.Use(mw.Log(svc.Log).Middleware)
+        router.Route("/", func(r chi.Router) </span><span class="cov0" title="0">{
+                r.Get("/{id}", GetHandler(svc))
+                r.Post("/", SaveHandler(svc))
+        }</span>)
+        <span class="cov0" title="0">router.Route("/api", func(r chi.Router) </span><span class="cov0" title="0">{
+                r.Route("/shorten", func(r chi.Router) </span><span class="cov0" title="0">{
+                        r.Post("/", ShortenHandler(svc))
+                        r.Post("/batch", BatchHandler(svc))
+                }</span>)
+                <span class="cov0" title="0">r.Route("/user", func(r chi.Router) </span><span class="cov0" title="0">{
+                        r.Use(mw.CheckAuth(svc.Log).Middleware)
+                        r.Get("/urls", GetURLsHandler(svc))
+                }</span>)
+        })
+        <span class="cov0" title="0">router.Delete("/api/user/urls", DeleteURLsHandler(svc))
+        router.Get("/ping", PingHandler(svc))
+        router.Mount("/debug", middleware.Profiler())
+
+        return router</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package handlers
+
+import (
+        "errors"
+        "io"
+        "net/http"
+        "net/url"
+        "shortener/internal/service"
+        "shortener/internal/storage"
+)
+
+func SaveHandler(svc *service.Service) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                ctx := r.Context()
+                long, err := io.ReadAll(r.Body)
+                if err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to read body: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+                <span class="cov8" title="1">short, err := svc.SaveURL(ctx, string(long))
+                if err != nil </span><span class="cov0" title="0">{
+                        var duplicateErr *storage.DuplicateRecordError
+                        if errors.As(err, &amp;duplicateErr) </span><span class="cov0" title="0">{
+                                w.WriteHeader(http.StatusConflict)
+                                short = duplicateErr.Message
+                        }</span> else<span class="cov0" title="0"> {
+                                svc.Log.Err("failed to save url: ", err)
+                                http.Error(w, "", http.StatusInternalServerError)
+                                return
+                        }</span>
+                } else<span class="cov8" title="1"> {
+                        w.Header().Set("Content-Type", "text/plain")
+                        w.WriteHeader(http.StatusCreated)
+                }</span>
+
+                <span class="cov8" title="1">resultURL, err := url.JoinPath(svc.BaseURL, short)
+                if err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to join path to get result URL: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+                <span class="cov8" title="1">_, err = w.Write([]byte(resultURL))
+                if err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to write the full URL response to client: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "errors"
+        "net/http"
+        "net/url"
+
+        "shortener/internal/models"
+        "shortener/internal/service"
+        "shortener/internal/storage"
+)
+
+func ShortenHandler(svc *service.Service) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                var req models.ShortenRequest
+                ctx := r.Context()
+                dec := json.NewDecoder(r.Body)
+                if err := dec.Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to decode request body: ", err)
+                        w.WriteHeader(http.StatusInternalServerError)
+                        return
+                }</span>
+                <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+
+                short, err := svc.SaveURL(ctx, req.URL)
+                if err != nil </span><span class="cov0" title="0">{
+                        var duplicateErr *storage.DuplicateRecordError
+                        if errors.As(err, &amp;duplicateErr) </span><span class="cov0" title="0">{
+                                w.WriteHeader(http.StatusConflict)
+                                short = duplicateErr.Message
+                        }</span> else<span class="cov0" title="0"> {
+                                svc.Log.Err("failed to save url: ", err)
+                                http.Error(w, "", http.StatusInternalServerError)
+                                return
+                        }</span>
+                } else<span class="cov8" title="1"> {
+                        w.WriteHeader(http.StatusCreated)
+                }</span>
+
+                <span class="cov8" title="1">resultURL, err := url.JoinPath(svc.BaseURL, short)
+                if err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to join path to get result URL: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+                <span class="cov8" title="1">resp := models.ShortenResponse{
+                        Result: resultURL,
+                }
+                enc := json.NewEncoder(w)
+                if err = enc.Encode(resp); err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to encode response: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "net/http"
+
+        "shortener/internal/service"
+)
+
+func GetURLsHandler(svc *service.Service) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                ctx := r.Context()
+
+                urls, err := svc.GetUserURLs(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed get user urls: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+                if len(urls) == 0 </span><span class="cov0" title="0">{
+                        w.WriteHeader(http.StatusNoContent)
+                }</span>
+                <span class="cov0" title="0">if err = json.NewEncoder(w).Encode(urls); err != nil </span><span class="cov0" title="0">{
+                        svc.Log.Err("failed to encode response: ", err)
+                        http.Error(w, "", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

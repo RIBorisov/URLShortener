@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"net/http"
-	"shortener/internal/logger"
 	"strings"
+
+	"shortener/internal/logger"
 )
 
 func allowedContentType(header string) bool {
@@ -15,16 +16,19 @@ func allowedContentType(header string) bool {
 	return ok
 }
 
+// BaseMW represents the base middleware structure.
 type BaseMW struct {
 	Log *logger.Log
 }
 
+// Gzip creates a new instance of the BaseMW middleware for gzip compression.
 func Gzip(log *logger.Log) *BaseMW {
 	return &BaseMW{
 		Log: log,
 	}
 }
 
+// Middleware returns an HTTP handler that handles gzip compression for requests and responses.
 func (ng *BaseMW) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ow := w

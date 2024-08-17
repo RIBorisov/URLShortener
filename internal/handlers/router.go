@@ -3,7 +3,6 @@ package handlers
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-
 	mw "shortener/internal/middleware"
 	"shortener/internal/service"
 )
@@ -31,5 +30,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 	})
 	router.Delete("/api/user/urls", DeleteURLsHandler(svc))
 	router.Get("/ping", PingHandler(svc))
+	router.Mount("/debug", middleware.Profiler())
+
 	return router
 }

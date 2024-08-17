@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	_ "net/http/pprof"
 	"time"
 
 	"shortener/internal/config"
@@ -33,6 +34,7 @@ func initApp(ctx context.Context, log *logger.Log) error {
 			log.Err("failed to close the connection: ", err)
 		}
 	}()
+
 	svc := &service.Service{
 		Storage:         store,
 		BaseURL:         cfg.Service.BaseURL,

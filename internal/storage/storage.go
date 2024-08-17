@@ -486,7 +486,7 @@ func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (URLS
 	if err != nil {
 		return nil, fmt.Errorf("failed to build storage: %w", err)
 	}
-	log.Info("using file storage..")
+	log.Debug("using file storage..")
 
 	return storage, nil
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
@@ -34,10 +33,6 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		if err = store.Close(); err != nil {
 			log.Err("failed to close the connection: ", err)
 		}
-	}()
-
-	go func() {
-		fmt.Println(http.ListenAndServe(":8081", nil))
 	}()
 
 	svc := &service.Service{

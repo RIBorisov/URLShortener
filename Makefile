@@ -63,3 +63,14 @@ coverage:
 .PHONY: tests
 tests:
 	cd ./internal/handlers && go test . -count 1 -v
+
+
+.PHONY: prof
+prof:
+	go tool pprof -http=":9090" -seconds=30 http://localhost:8081/debug/pprof/profile
+
+
+.PHONY: save-base-pprof
+save-base-pprof:
+	curl http://127.0.0.1:8081/debug/pprof/profile > ./profiles/base.pprof
+	#go tool pprof -http=":9090" ./profiles/base.pprof

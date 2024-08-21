@@ -1,5 +1,5 @@
 # URL Shortener service
-[![Coverage Status](https://img.shields.io/badge/coverage-44.8%25-brightgreen)](https://github.com/RIBorisov/gophermart/coverage.html)
+[![Coverage Status](https://img.shields.io/badge/coverage-44.7%25-brightgreen)](https://github.com/RIBorisov/gophermart/coverage.html)
 # Сервис URL-коротких ссылок
 
 ## Описание

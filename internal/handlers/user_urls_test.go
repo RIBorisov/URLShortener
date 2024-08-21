@@ -70,7 +70,7 @@ func TestGetURLsHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := GetURLsHandler(svc)
-			r := httptest.NewRequest(http.MethodGet, route, nil)
+			r := httptest.NewRequest(http.MethodGet, route, http.NoBody)
 			w := httptest.NewRecorder()
 			oldCtx := r.Context()
 			rWithCtx := r.WithContext(context.WithValue(oldCtx, models.CtxUserIDKey, tt.userID))

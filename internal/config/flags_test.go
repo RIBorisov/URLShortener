@@ -9,11 +9,17 @@ import (
 )
 
 func TestParseFlags(t *testing.T) {
-	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError) //nolint:reassign // test
 	f = ServiceConfig{}
 
-	// Задаем аргументы командной строки
-	os.Args = []string{"cmd", "-a", "127.0.0.1:9090", "-b", "http://127.0.0.1:9090", "-f", "/path/to/storage", "-d", "user:pass@tcp(localhost:3306)/dbname"}
+	os.Args = []string{ //nolint:reassign // test
+		"cmd",
+		"-a",
+		"127.0.0.1:9090",
+		"-b", "http://127.0.0.1:9090",
+		"-f", "/path/to/storage",
+		"-d", "user:pass@tcp(localhost:3306)/dbname",
+	}
 
 	parsed := parseFlags()
 

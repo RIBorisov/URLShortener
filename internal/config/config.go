@@ -11,7 +11,7 @@ const (
 	baseURL           = "BASE_URL"
 	serverAddress     = "SERVER_ADDRESS"
 	fileStoragePath   = "FILE_STORAGE_PATH"
-	secretKey         = "!@#$%^YdBg0DS"
+	secretKey         = "!@#$YdBg0DS"
 	backgroundCleanup = "BACKGROUND_CLEANUP"
 )
 

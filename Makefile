@@ -60,9 +60,14 @@ coverage:
 	go test ./internal/handlers -coverprofile=$(RAWFILE) && \
  	go tool cover -html=$(RAWFILE) -o $(HTMLREPORT)
 
+PACKAGES := $(shell go list ./... | grep -vE "mocks|models|logger|storage|service" | tr '\n' ' ')
+
 .PHONY: tests
 tests:
-	cd ./internal/handlers && go test . -count 1 -v
+	go list ./... | grep -vE "mocks|models|logger|cmd|storage|service|middleware"|xargs go test -v -coverpkg=$1 -coverprofile=profile.cov $1
+	go tool cover -func profile.cov
+
+#go tool cover -html=$(RAWFILE) -o $(HTMLREPORT)
 
 
 .PHONY: prof

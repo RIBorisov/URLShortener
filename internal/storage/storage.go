@@ -469,7 +469,7 @@ func (f *inFile) restore() error {
 // LoadStorage loads the appropriate URL storage based on the configuration.
 func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (service.URLStorage, error) {
 	if cfg.Service.DatabaseDSN != "" {
-		db, err := New(ctx, cfg.Service.DatabaseDSN, log)
+		db, err := New(ctx, cfg.Service.DatabaseDSN)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create database storage: %w", err)
 		}

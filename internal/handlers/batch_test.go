@@ -2,19 +2,20 @@ package handlers
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 
 	"shortener/internal/config"
 	"shortener/internal/logger"
+	"shortener/internal/models"
 	"shortener/internal/service"
-	"shortener/internal/service/mocks"
+	"shortener/internal/storage"
 )
 
 func TestBatchHandler(t *testing.T) {
@@ -25,70 +26,62 @@ func TestBatchHandler(t *testing.T) {
 	cfg := config.LoadConfig()
 	log := &logger.Log{}
 	log.Initialize("INFO")
+	ctx := context.Background()
+	s, err := storage.LoadStorage(ctx, cfg, log)
+	assert.NoError(t, err)
+	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
 
-	type want struct {
-		respErr  error
-		status   int
-		response any
-	}
 	tests := []struct {
-		name         string
-		callTimes    int
-		callGetTimes int
-		method       string
-		body         string
-		want         want
+		name       string
+		userID     string
+		body       []models.BatchRequest
+		wantStatus int
 	}{
 		{
-			name:         "Negative POST #1",
-			callTimes:    0,
-			callGetTimes: 0,
-			method:       POST,
-			body: `correlation_id": "id1","original_url": "https://ya.ru"},
-{"correlation_id": "id2","original_url": "https://t.me"}]`,
-			want: want{
-				respErr:  errors.New("failed to decode request into model"),
-				status:   http.StatusInternalServerError,
-				response: nil,
+			name:   "Positive #1",
+			userID: "100500",
+			body: []models.BatchRequest{
+				{CorrelationID: "id1", OriginalURL: "t.me"},
+				{CorrelationID: "id2", OriginalURL: "t.him"},
 			},
+			wantStatus: http.StatusCreated,
 		},
 		{
-			name:      "Negative POST #2",
-			callTimes: 0,
-			method:    POST,
-			body:      `[]`,
-			want: want{
-				respErr:  errors.New("empty request batch"),
-				status:   http.StatusBadRequest,
-				response: nil,
+			name:       "Negative #1",
+			userID:     "100500",
+			body:       []models.BatchRequest{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:   "Negative #2",
+			userID: "",
+			body: []models.BatchRequest{
+				{CorrelationID: "id13", OriginalURL: "t.me"},
+				{CorrelationID: "id21", OriginalURL: "t.him"},
 			},
+			wantStatus: http.StatusInternalServerError,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			mockStore := mocks.NewMockURLStorage(ctrl)
-
-			mockStore.EXPECT().Get(ctx, gomock.Any()).Times(tt.callGetTimes).Return("", nil)
-			mockStore.EXPECT().BatchSave(ctx, tt.body).Times(tt.callTimes).Return(tt.want.response, tt.want.respErr)
-
-			svc := &service.Service{Storage: mockStore, BaseURL: cfg.Service.BaseURL, Log: log}
-			handler := BatchHandler(svc)
-
-			req, err := http.NewRequest(POST, route, strings.NewReader(tt.body))
-
+			router := chi.NewRouter()
+			router.Post(route, BatchHandler(svc))
+			b, err := json.Marshal(tt.body)
 			assert.NoError(t, err)
+			r, err := http.NewRequest(POST, route, strings.NewReader(string(b)))
+			assert.NoError(t, err)
+
+			if tt.userID != "" {
+				r = r.WithContext(context.WithValue(r.Context(), models.CtxUserIDKey, tt.userID))
+			}
 
 			w := httptest.NewRecorder()
 
-			handler(w, req)
+			router.ServeHTTP(w, r)
 			resp := w.Result()
 			assert.NoError(t, resp.Body.Close())
 
-			assert.Equal(t, tt.want.status, resp.StatusCode)
+			assert.Equal(t, tt.wantStatus, resp.StatusCode)
 		})
 	}
 }

@@ -47,10 +47,7 @@ func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 		return nil, fmt.Errorf("failed to create new reader: %w", err)
 	}
 
-	return &compressReader{
-		r:  r,
-		zr: zr,
-	}, nil
+	return &compressReader{r: r, zr: zr}, nil
 }
 
 // Read reads data from the gzip-compressed request reader.

@@ -10,8 +10,6 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5/pgxpool"
-
-	"shortener/internal/logger"
 )
 
 // DBStore connect pool.
@@ -19,7 +17,7 @@ type DBStore struct {
 	pool *pgxpool.Pool
 }
 
-func initPool(ctx context.Context, log *logger.Log, dsn string) (*pgxpool.Pool, error) {
+func initPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	const (
 		minConns = 1
 		maxConns = 5
@@ -28,7 +26,6 @@ func initPool(ctx context.Context, log *logger.Log, dsn string) (*pgxpool.Pool, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse DatabaseDSN: %w", err)
 	}
-	poolCfg.ConnConfig.Tracer = &queryTracer{log: log}
 	poolCfg.MinConns = minConns
 	poolCfg.MaxConns = maxConns
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
@@ -39,12 +36,12 @@ func initPool(ctx context.Context, log *logger.Log, dsn string) (*pgxpool.Pool, 
 }
 
 // New creates new DBStore.
-func New(ctx context.Context, dsn string, log *logger.Log) (*DBStore, error) {
+func New(ctx context.Context, dsn string) (*DBStore, error) {
 	if err := runMigrations(dsn); err != nil {
 		return nil, fmt.Errorf("failed to run DB migrations: %w", err)
 	}
 
-	pool, err := initPool(ctx, log, dsn)
+	pool, err := initPool(ctx, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init pool: %w", err)
 	}

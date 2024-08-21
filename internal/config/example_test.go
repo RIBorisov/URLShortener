@@ -18,9 +18,6 @@ func ExampleConfig() {
 			BackgroundCleanup:         true,
 			BackgroundCleanupInterval: 10 * time.Second,
 		},
-		URL: URLDetail{
-			Length: 10,
-		},
 	}
 	// Configure output
 	output := fmt.Sprintf(
@@ -31,8 +28,7 @@ func ExampleConfig() {
 	DatabaseDSN: %q,
 	SecretKey: %q,
 	BackgroundCleanup: %t,
-	BackgroundCleanupInterval: %v,
-	URLLength: %d
+	BackgroundCleanupInterval: %v
 }`,
 		cfg.Service.ServerAddress,
 		cfg.Service.BaseURL,
@@ -41,7 +37,6 @@ func ExampleConfig() {
 		cfg.Service.SecretKey,
 		cfg.Service.BackgroundCleanup,
 		cfg.Service.BackgroundCleanupInterval,
-		cfg.URL.Length,
 	)
 
 	// Print the loaded configuration.
@@ -55,7 +50,6 @@ func ExampleConfig() {
 	// 	DatabaseDSN: "postgresql://admin:password@localhost:5432/shortener?sslmode=disable",
 	// 	SecretKey: "super-secret-key",
 	// 	BackgroundCleanup: true,
-	// 	BackgroundCleanupInterval: 10s,
-	// 	URLLength: 10
+	// 	BackgroundCleanupInterval: 10s
 	// }
 }

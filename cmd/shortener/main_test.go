@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 )
 
 func Test_initApp(t *testing.T) {
-	os.Setenv("SERVER_ADDRESS", ":8080")
 	type args struct {
 		log *logger.Log
 	}
@@ -30,6 +28,7 @@ func Test_initApp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("SERVER_ADDRESS", ":8080")
 			tt.args.log.Initialize("INFO")
 
 			shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), 500*time.Millisecond)

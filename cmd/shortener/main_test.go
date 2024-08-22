@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 )
 
 func Test_initApp(t *testing.T) {
+	os.Setenv("SERVER_ADDRESS", ":8080")
 	type args struct {
 		log *logger.Log
 	}

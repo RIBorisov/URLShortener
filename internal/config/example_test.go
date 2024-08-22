@@ -11,7 +11,7 @@ func ExampleConfig() {
 	cfg := Config{
 		Service: ServiceConfig{
 			ServerAddress:             ":8080",
-			BaseURL:                   "http://localhost/",
+			BaseURL:                   "http://localhost:8080",
 			FileStoragePath:           "/tmp/file-storage-path/file.json",
 			DatabaseDSN:               "postgresql://admin:password@localhost:5432/shortener?sslmode=disable",
 			SecretKey:                 "super-secret-key",

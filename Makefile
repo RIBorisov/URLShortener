@@ -64,12 +64,8 @@ PACKAGES := $(shell go list ./... | grep -vE "mocks|models|logger|storage|servic
 
 .PHONY: tests
 tests:
-	#go list ./... | grep -vE "mocks|models|logger|cmd|storage|service|middleware"|xargs go test -v -coverpkg=$1 -coverprofile=profile.cov $1
 	go list ./... | grep -vE "mocks"|xargs go test -v -coverpkg=$1 -coverprofile=profile.cov $1
 	go tool cover -func profile.cov
-
-#go tool cover -html=$(RAWFILE) -o $(HTMLREPORT)
-
 
 .PHONY: prof
 prof:

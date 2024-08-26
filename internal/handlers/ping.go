@@ -6,6 +6,7 @@ import (
 	"shortener/internal/service"
 )
 
+// PingHandler pings database.
 func PingHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

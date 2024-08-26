@@ -8,6 +8,7 @@ import (
 	"shortener/internal/service"
 )
 
+// NewRouter creates router.
 func NewRouter(svc *service.Service) *chi.Mux {
 	router := chi.NewRouter()
 
@@ -31,5 +32,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 	})
 	router.Delete("/api/user/urls", DeleteURLsHandler(svc))
 	router.Get("/ping", PingHandler(svc))
+	router.Mount("/debug", middleware.Profiler())
+
 	return router
 }

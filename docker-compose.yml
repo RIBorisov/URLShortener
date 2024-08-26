@@ -1,5 +1,5 @@
 services:
-  db:
+  dbshort:
     image: postgres:15
     restart: always
     ports:

@@ -7,6 +7,7 @@ import (
 	"shortener/internal/service"
 )
 
+// GetURLsHandler represents a handler for getting user URLs requests.
 func GetURLsHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

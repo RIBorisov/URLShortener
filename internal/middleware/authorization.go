@@ -20,19 +20,23 @@ const (
 	unauthorized = "Access denied"
 )
 
+// Claims represents the claims for a JWT token.
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID string
 }
 
+// BaseAuth represents the base authentication middleware.
 type BaseAuth struct {
 	Service *service.Service
 }
 
+// Auth creates a new instance of the BaseAuth middleware.
 func Auth(svc *service.Service) *BaseAuth {
 	return &BaseAuth{Service: svc}
 }
 
+// Middleware returns an HTTP handler that checks for the presence of a JWT token in the request.
 func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := r.Cookie("token")
@@ -65,13 +69,17 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 	})
 }
 
+// BaseCheck represents the base check middleware.
 type BaseCheck struct {
 	Log *logger.Log
 }
 
+// CheckAuth creates a new instance of the BaseCheck middleware.
 func CheckAuth(log *logger.Log) *BaseCheck {
 	return &BaseCheck{Log: log}
 }
+
+// Middleware returns an HTTP handler that checks for the presence of an Authorization header and a token cookie.
 func (bc *BaseCheck) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")

@@ -11,35 +11,38 @@ const (
 	baseURL           = "BASE_URL"
 	serverAddress     = "SERVER_ADDRESS"
 	fileStoragePath   = "FILE_STORAGE_PATH"
-	secretKey         = "!@#$%^YdBg0DS"
+	secretKey         = "SECRET_KEY"
+	secretKeyValue    = "!@#$YdBg0DS"
 	backgroundCleanup = "BACKGROUND_CLEANUP"
 )
 
+// ServiceConfig contains common config entities.
 type ServiceConfig struct {
-	ServerAddress             string `env:"SERVER_ADDRESS" env-default:":8080"`
-	BaseURL                   string `env:"BASE_URL" env-default:"http://localhost:8080"`
-	FileStoragePath           string `env:"FILE_STORAGE_PATH" env-default:"/tmp/short-url-db.json"`
-	DatabaseDSN               string `env:"DATABASE_DSN"`
-	SecretKey                 string `env:"SECRET_KEY"`
-	BackgroundCleanup         bool   `env:"BACKGROUND_CLEANUP"`
-	BackgroundCleanupInterval time.Duration
+	ServerAddress             string        `env:"SERVER_ADDRESS" env-default:":8080"`
+	BaseURL                   string        `env:"BASE_URL" env-default:"http://localhost:8080"`
+	FileStoragePath           string        `env:"FILE_STORAGE_PATH" env-default:"/tmp/short-url-db.json"`
+	DatabaseDSN               string        `env:"DATABASE_DSN"`
+	SecretKey                 string        `env:"SECRET_KEY"`
+	BackgroundCleanup         bool          `env:"BACKGROUND_CLEANUP"`
+	BackgroundCleanupInterval time.Duration `env:"BACKGROUND_CLEANUP_INTERVAL"`
 }
 
-type URLDetail struct {
-	Length int `env:"URL_LENGTH" env-default:"8"`
-}
-
+// Config contains main config structures.
 type Config struct {
 	Service ServiceConfig
-	URL     URLDetail
 }
 
+// LoadConfig loads the config.
 func LoadConfig() *Config {
 	var cfg Config
 	f := parseFlags()
-	cfg.URL.Length = 8
 	cfg.Service.FileStoragePath = defaultFilePath
-	cfg.Service.SecretKey = secretKey
+	cfg.Service.SecretKey = secretKeyValue
+
+	sKey, ok := os.LookupEnv(secretKey)
+	if ok {
+		cfg.Service.SecretKey = sKey
+	}
 
 	dsn, ok := os.LookupEnv(dbDSN)
 	if ok {

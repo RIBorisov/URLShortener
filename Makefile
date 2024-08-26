@@ -51,3 +51,34 @@ db-downgrade:
         -path=/migrations \
         -database $(DSN) \
         down
+
+RAWFILE:=coverage.out
+HTMLREPORT:=coverage.html
+
+.PHONY: coverage
+coverage:
+	go test ./internal/handlers -coverprofile=$(RAWFILE) && \
+ 	go tool cover -html=$(RAWFILE) -o $(HTMLREPORT)
+
+PACKAGES := $(shell go list ./... | grep -vE "mocks|models|logger|storage|service" | tr '\n' ' ')
+
+.PHONY: tests
+tests:
+	go list ./... | grep -vE "mocks"|xargs go test -v -coverpkg=$1 -coverprofile=profile.cov $1
+	go tool cover -func profile.cov
+
+.PHONY: prof
+prof:
+	go tool pprof -http=":9090" -seconds=30 http://localhost:8081/debug/pprof/profile
+
+
+.PHONY: save-base-pprof
+save-base-pprof:
+	curl http://127.0.0.1:8081/debug/pprof/profile > ./profiles/base.pprof
+	#go tool pprof -http=":9090" ./profiles/base.pprof
+
+
+.PHONY: gen-mocks
+gen-mocks:
+	mockgen -source=internal/service/service.go -destination=internal/service/mocks/service_mock.gen.go -package=mocks
+

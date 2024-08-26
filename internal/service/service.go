@@ -1,3 +1,4 @@
+// Package service contains the business logic of the project.
 package service
 
 import (
@@ -9,18 +10,31 @@ import (
 
 	"shortener/internal/logger"
 	"shortener/internal/models"
-	"shortener/internal/storage"
 )
 
+// URLStorage contains contracts for communicate with storage.
+type URLStorage interface {
+	Close() error
+	Ping(ctx context.Context) error
+	Get(ctx context.Context, shortLink string) (string, error)
+	Save(ctx context.Context, shortLink, longLink string) error
+	BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error)
+	GetByUserID(ctx context.Context) ([]models.BaseRow, error)
+	DeleteURLs(ctx context.Context, input models.DeleteURLs) error
+	Cleanup(ctx context.Context) ([]string, error)
+}
+
+// Service represents the main service structure for the URL shortener.
 type Service struct {
 	Log             *logger.Log
-	Storage         storage.URLStorage
+	Storage         URLStorage
 	FileStoragePath string
 	BaseURL         string
 	DatabaseDSN     string
 	SecretKey       string
 }
 
+// SaveURL saves a long URL and returns a shortened URL.
 func (s *Service) SaveURL(ctx context.Context, long string) (string, error) {
 	short := s.generateUniqueShortLink(ctx)
 	if err := s.Storage.Save(ctx, short, long); err != nil {
@@ -29,6 +43,7 @@ func (s *Service) SaveURL(ctx context.Context, long string) (string, error) {
 	return short, nil
 }
 
+// GetURL retrieves a long URL by its short URL.
 func (s *Service) GetURL(ctx context.Context, short string) (string, error) {
 	long, err := s.Storage.Get(ctx, short)
 	if err != nil {
@@ -37,6 +52,7 @@ func (s *Service) GetURL(ctx context.Context, short string) (string, error) {
 	return long, nil
 }
 
+// SaveURLs saves multiple URLs in batch and returns the corresponding short URLs.
 func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest) (models.BatchResponseArray, error) {
 	processed := s.convertData(ctx, input)
 	saved, err := s.Storage.BatchSave(ctx, processed)
@@ -54,6 +70,7 @@ func (s *Service) SaveURLs(ctx context.Context, input []models.BatchRequest) (mo
 	return resp, nil
 }
 
+// DeleteURLs deletes multiple URLs by their short URLs.
 func (s *Service) DeleteURLs(ctx context.Context, input models.DeleteURLs) error {
 	err := s.Storage.DeleteURLs(ctx, input)
 	if err != nil {
@@ -72,7 +89,7 @@ func (s *Service) generateUniqueShortLink(ctx context.Context) string {
 		uniqStringCandidate := generateRandomString(length)
 		_, err := s.Storage.Get(ctx, uniqStringCandidate)
 		if err != nil {
-			if errors.Is(err, storage.ErrURLNotFound) {
+			if errors.Is(err, ErrURLNotFound) {
 				uniqString = uniqStringCandidate
 				break
 			}
@@ -93,6 +110,8 @@ func (s *Service) convertData(ctx context.Context, input []models.BatchRequest) 
 	}
 	return res
 }
+
+// GetUserURLs retrieves all URLs associated with a user.
 func (s *Service) GetUserURLs(ctx context.Context) (models.UserURLs, error) {
 	data, err := s.Storage.GetByUserID(ctx)
 	if err != nil {
@@ -118,3 +137,6 @@ func generateRandomString(length int) string {
 	}
 	return string(randomString)
 }
+
+// ErrURLNotFound error indicates item was not found.
+var ErrURLNotFound = errors.New("url not found")

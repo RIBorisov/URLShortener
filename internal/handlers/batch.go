@@ -8,6 +8,18 @@ import (
 	"shortener/internal/service"
 )
 
+// BatchHandler represents a handler for batch URL shortening requests.
+// It handles HTTP POST requests to the /api/shorten/batch endpoint,
+// decoding the request body into a slice of BatchRequest objects.
+// If the request body is empty or cannot be decoded, it returns an appropriate error response.
+// Otherwise, it calls the SaveURLs method of the service to save the URLs and returns the saved URLs in JSON format.
+//
+// Example usage:
+//
+// ```go
+// handler := BatchHandler(svc)
+// http.Handle("/api/shorten/batch", handler)
+// ```.
 func BatchHandler(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req []models.BatchRequest

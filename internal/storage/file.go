@@ -13,6 +13,7 @@ import (
 	"shortener/internal/models"
 )
 
+// URLRecord represents a single URL record.
 type URLRecord struct {
 	UUID        string `json:"uuid"`
 	OriginalURL string `json:"original_url"`
@@ -20,6 +21,8 @@ type URLRecord struct {
 	UserID      string `json:"user_id"`
 	Deleted     bool   `json:"is_deleted"`
 }
+
+// Consumer represents a file consumer.
 type Consumer struct {
 	file   *os.File
 	reader *bufio.Scanner
@@ -37,6 +40,7 @@ func prepareDir(filename string) error {
 	return nil
 }
 
+// NewConsumer creates a new file consumer for the given filename.
 func NewConsumer(filename string) (*Consumer, error) {
 	err := prepareDir(filename)
 	if err != nil {
@@ -52,6 +56,7 @@ func NewConsumer(filename string) (*Consumer, error) {
 	}, nil
 }
 
+// ReadFileStorage reads URL records from the given filename and returns them as a map.
 func ReadFileStorage(filename string) (map[string]URLRecord, error) {
 	c, err := NewConsumer(filename)
 	if err != nil {
@@ -77,6 +82,7 @@ func ReadFileStorage(filename string) (map[string]URLRecord, error) {
 	return URLs, nil
 }
 
+// AppendToFile appends a single URL record to the given filename.
 func AppendToFile(log *logger.Log, filename string, urlRecord URLRecord) error {
 	urlRow := URLRecord{
 		UUID:        urlRecord.UUID,
@@ -109,6 +115,7 @@ func AppendToFile(log *logger.Log, filename string, urlRecord URLRecord) error {
 	return nil
 }
 
+// BatchAppend appends multiple URL records to the given filename and returns the updated batch array.
 func BatchAppend(
 	log *logger.Log, filename, baseURL, userID string, input models.BatchArray, counter uint64,
 ) (models.BatchArray, error) {
@@ -154,6 +161,8 @@ func BatchAppend(
 
 	return saved, nil
 }
+
+// BatchUpdate updates multiple URL records in the given filename.
 func BatchUpdate(filename string, input []URLRecord) error {
 	file, err := os.OpenFile(filename, os.O_TRUNC|os.O_RDWR, 0666)
 	if err != nil {

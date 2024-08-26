@@ -1,3 +1,4 @@
+// Package storage contains logic for managing URL records.
 package storage
 
 import (
@@ -15,8 +16,10 @@ import (
 	"shortener/internal/config"
 	"shortener/internal/logger"
 	"shortener/internal/models"
+	"shortener/internal/service"
 )
 
+// inMemory represents an in-memory URL storage.
 type inMemory struct {
 	*logger.Log
 	mux     *sync.Mutex
@@ -25,28 +28,20 @@ type inMemory struct {
 	counter uint64
 }
 
+// inFile represents a file-based URL storage.
 type inFile struct {
 	inMemory
 	filePath string
 }
 
+// inDatabase represents a database-based URL storage.
 type inDatabase struct {
 	*DBStore
 	cfg *config.Config
 	log *logger.Log
 }
 
-type URLStorage interface {
-	Close() error
-	Ping(ctx context.Context) error
-	Get(ctx context.Context, shortLink string) (string, error)
-	Save(ctx context.Context, shortLink, longLink string) error
-	BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error)
-	GetByUserID(ctx context.Context) ([]models.BaseRow, error)
-	DeleteURLs(ctx context.Context, input models.DeleteURLs) error
-	Cleanup(ctx context.Context) ([]string, error)
-}
-
+// Cleanup removes deleted URLs from the database.
 func (d *inDatabase) Cleanup(ctx context.Context) ([]string, error) {
 	const stmt = `DELETE FROM urls WHERE is_deleted = TRUE RETURNING id`
 	result := make([]string, 0)
@@ -65,6 +60,7 @@ func (d *inDatabase) Cleanup(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
+// DeleteURLs marks URLs as deleted in the database.
 func (d *inDatabase) DeleteURLs(ctx context.Context, input models.DeleteURLs) error {
 	userID, ok := ctx.Value(models.CtxUserIDKey).(string)
 	if !ok {
@@ -103,6 +99,7 @@ func (d *inDatabase) DeleteURLs(ctx context.Context, input models.DeleteURLs) er
 	return nil
 }
 
+// GetByUserID retrieves URLs for a given user ID from the database.
 func (d *inDatabase) GetByUserID(ctx context.Context) ([]models.BaseRow, error) {
 	const stmt = `SELECT short, long FROM urls WHERE user_id = $1 AND is_deleted = FALSE`
 	userID, ok := ctx.Value(models.CtxUserIDKey).(string)
@@ -127,6 +124,7 @@ func (d *inDatabase) GetByUserID(ctx context.Context) ([]models.BaseRow, error) 
 	return data, nil
 }
 
+// Get retrieves a URL by its short link from the database.
 func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, error) {
 	const stmt = `SELECT long, is_deleted FROM urls WHERE short = $1`
 
@@ -137,7 +135,7 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, error) 
 	err := d.pool.QueryRow(ctx, stmt, shortLink).Scan(&long, &isDeleted)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", ErrURLNotFound
+			return "", service.ErrURLNotFound
 		}
 		return "", fmt.Errorf("failed get row: %w", err)
 	}
@@ -147,6 +145,7 @@ func (d *inDatabase) Get(ctx context.Context, shortLink string) (string, error) 
 	return long, nil
 }
 
+// Save saves a new URL record to the database.
 func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error {
 	const (
 		longConstraint = "idx_long_is_not_deleted"
@@ -178,6 +177,7 @@ func (d *inDatabase) Save(ctx context.Context, shortLink, longLink string) error
 	return nil
 }
 
+// BatchSave saves multiple URL records to the database.
 func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error) {
 	const stmt = `INSERT INTO urls (short, long, user_id) VALUES (@short, @long, @user_id)`
 
@@ -236,6 +236,7 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (mo
 	return resp, nil
 }
 
+// Cleanup removes deleted URLs from the in-memory storage.
 func (m *inMemory) Cleanup(_ context.Context) ([]string, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
@@ -248,6 +249,8 @@ func (m *inMemory) Cleanup(_ context.Context) ([]string, error) {
 	}
 	return cleaned, nil
 }
+
+// GetByUserID retrieves URLs for a given user ID from the in-memory storage.
 func (m *inMemory) GetByUserID(ctx context.Context) ([]models.BaseRow, error) {
 	var data []models.BaseRow
 	userID, ok := ctx.Value(models.CtxUserIDKey).(string)
@@ -267,6 +270,7 @@ func (m *inMemory) GetByUserID(ctx context.Context) ([]models.BaseRow, error) {
 	return data, nil
 }
 
+// DeleteURLs marks URLs as deleted in the in-memory storage.
 func (m *inMemory) DeleteURLs(ctx context.Context, input models.DeleteURLs) error {
 	var wg sync.WaitGroup
 	userID, ok := ctx.Value(models.CtxUserIDKey).(string)
@@ -301,6 +305,7 @@ func (m *inMemory) DeleteURLs(ctx context.Context, input models.DeleteURLs) erro
 	return nil
 }
 
+// Get retrieves a URL by its short link from the in-memory storage.
 func (m *inMemory) Get(_ context.Context, shortLink string) (string, error) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
@@ -308,9 +313,10 @@ func (m *inMemory) Get(_ context.Context, shortLink string) (string, error) {
 	if ok {
 		return longLink.OriginalURL, nil
 	}
-	return "", ErrURLNotFound
+	return "", service.ErrURLNotFound
 }
 
+// Save saves a new URL record to the in-memory storage.
 func (m *inMemory) Save(ctx context.Context, shortLink, longLink string) error {
 	m.mux.Lock()
 	userID, ok := ctx.Value(models.CtxUserIDKey).(string)
@@ -329,6 +335,7 @@ func (m *inMemory) Save(ctx context.Context, shortLink, longLink string) error {
 	return nil
 }
 
+// BatchSave saves multiple URL records to the in-memory storage.
 func (m *inMemory) BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error) {
 	var result models.BatchArray
 	userID, ok := ctx.Value(models.CtxUserIDKey).(string)
@@ -349,7 +356,7 @@ func (m *inMemory) BatchSave(ctx context.Context, input models.BatchArray) (mode
 	return result, nil
 }
 
-// Cleanup if is_deleted=false, makes new map, overwrites file and returns a slice of strings.
+// Cleanup removes deleted URLs from the file-based storage.
 func (f *inFile) Cleanup(_ context.Context) ([]string, error) {
 	urls := make([]URLRecord, 0)
 	f.mux.Lock()
@@ -376,6 +383,8 @@ func (f *inFile) Cleanup(_ context.Context) ([]string, error) {
 
 	return result, nil
 }
+
+// Save saves a new URL record to the file-based storage.
 func (f *inFile) Save(ctx context.Context, shortLink, longLink string) error {
 	f.mux.Lock()
 	userID, ok := ctx.Value(models.CtxUserIDKey).(string)
@@ -399,6 +408,7 @@ func (f *inFile) Save(ctx context.Context, shortLink, longLink string) error {
 	return nil
 }
 
+// BatchSave saves multiple URL records to the file-based storage.
 func (f *inFile) BatchSave(ctx context.Context, input models.BatchArray) (models.BatchArray, error) {
 	f.mux.Lock()
 	userID, ok := ctx.Value(models.CtxUserIDKey).(string)
@@ -414,6 +424,7 @@ func (f *inFile) BatchSave(ctx context.Context, input models.BatchArray) (models
 	return saved, nil
 }
 
+// DeleteURLs marks URLs as deleted in the file-based storage.
 func (f *inFile) DeleteURLs(ctx context.Context, input models.DeleteURLs) error {
 	err := f.inMemory.DeleteURLs(ctx, input)
 	if err != nil {
@@ -440,6 +451,7 @@ func (f *inFile) DeleteURLs(ctx context.Context, input models.DeleteURLs) error 
 	return nil
 }
 
+// restore restores the file-based storage from a file.
 func (f *inFile) restore() error {
 	if f.filePath != "" {
 		mapping, err := ReadFileStorage(f.filePath)
@@ -454,9 +466,10 @@ func (f *inFile) restore() error {
 	return nil
 }
 
-func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (URLStorage, error) {
+// LoadStorage loads the appropriate URL storage based on the configuration.
+func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (service.URLStorage, error) {
 	if cfg.Service.DatabaseDSN != "" {
-		db, err := New(ctx, cfg.Service.DatabaseDSN, log)
+		db, err := New(ctx, cfg.Service.DatabaseDSN)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create database storage: %w", err)
 		}
@@ -486,48 +499,60 @@ func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (URLS
 	if err != nil {
 		return nil, fmt.Errorf("failed to build storage: %w", err)
 	}
-	log.Info("using file storage..")
+	log.Debug("using file storage..")
 
 	return storage, nil
 }
 
+// Close closes the database connection.
 func (d *inDatabase) Close() error {
 	d.pool.Close()
 	return nil
 }
 
+// Close does nothing for in-memory storage.
 func (m *inMemory) Close() error {
 	return nil
 }
 
+// Close does nothing for in-file storage.
 func (f *inFile) Close() error {
 	return nil
 }
 
+// DuplicateRecordError ...
 type DuplicateRecordError struct {
 	Err     error
 	Message string
 }
 
+// Error ...
 func (e *DuplicateRecordError) Error() string {
 	return e.Message
 }
+
+// Unwrap ...
 func (e *DuplicateRecordError) Unwrap() error {
 	return e.Err
 }
 
+// Ping ...
 func (d *inDatabase) Ping(ctx context.Context) error {
 	return d.pool.Ping(ctx)
 }
+
+// Ping ...
 func (f *inFile) Ping(_ context.Context) error {
 	return nil
 }
+
+// Ping ...
 func (m *inMemory) Ping(_ context.Context) error {
 	return nil
 }
 
+// ErrURLDeleted ...
 var (
-	ErrURLNotFound        = errors.New("url not found")
 	ErrURLDeleted         = errors.New("url has been deleted")
 	errGetUserFromContext = errors.New("failed get user from context")
 )

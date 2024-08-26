@@ -2,135 +2,109 @@ package handlers
 
 import (
 	"context"
-	"io"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"shortener/internal/models"
-	"shortener/internal/storage"
 	"testing"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"shortener/internal/config"
+	"shortener/internal/logger"
 	"shortener/internal/service"
+	"shortener/internal/service/mocks"
+	"shortener/internal/storage"
 )
 
-type MockDB struct {
-	mock.Mock
-}
-
-func (m *MockDB) Get(_ context.Context, shortLink string) (string, error) {
-	args := m.Called(shortLink)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockDB) Save(_ context.Context, shortLink, longLink string) error {
-	m.Called(shortLink, longLink)
-	return nil
-}
-
-func (m *MockDB) BatchSave(_ context.Context, _ models.BatchArray) (models.BatchArray, error) {
-	return nil, nil
-}
-
-func (m *MockDB) GetByUserID(_ context.Context) ([]models.BaseRow, error) {
-	return nil, nil
-}
-func (m *MockDB) DeleteURLs(_ context.Context, _ models.DeleteURLs) error {
-	return nil
-}
-
-func (m *MockDB) Cleanup(_ context.Context) ([]string, error) {
-	return nil, nil
-}
-
-func (m *MockDB) Close() error {
-	return nil
-}
-
-func (m *MockDB) Ping(_ context.Context) error {
-	return nil
-}
-
 func TestGetHandler(t *testing.T) {
+	const GET = http.MethodGet
 	cfg := config.LoadConfig()
-
-	mockedDB := &MockDB{}
-	svc := &service.Service{Storage: mockedDB, BaseURL: cfg.Service.BaseURL}
+	log := &logger.Log{}
+	log.Initialize("INFO")
 
 	type want struct {
-		contentType string
-		statusCode  int
-		err         error
+		response any
+		respErr  error
+		status   int
 	}
-	cases := []struct {
-		name    string
-		route   string
-		longURL string
-		method  string
-		want    want
+	tests := []struct {
+		name      string
+		route     string
+		callTimes int
+		longURL   string
+		method    string
+		want      want
 	}{
 		{
-			name:    "Positive GET #1",
-			route:   "BFG9000x",
-			longURL: "https://example.org",
-			method:  http.MethodGet,
+			name:      "Positive GET #1",
+			route:     "/BFG9000x",
+			callTimes: 1,
+			longURL:   "https://example.org",
+			method:    http.MethodGet,
 			want: want{
-				contentType: `"text/plain; charset=utf-8"`,
-				statusCode:  http.StatusTemporaryRedirect,
-				err:         nil,
+				response: "https://example.org",
+				respErr:  nil,
+				status:   http.StatusTemporaryRedirect,
 			},
 		},
 		{
-			name:    "Positive GET #2",
-			route:   "Xo0lK6n5",
-			longURL: "https://dzen.ru",
-			method:  http.MethodGet,
+			name:      "Positive GET #2",
+			route:     "/Xo0lK6n5",
+			callTimes: 1,
+			longURL:   "https://dzen.ru",
+			method:    http.MethodGet,
 			want: want{
-				contentType: `"text/plain; charset=utf-8"`,
-				statusCode:  http.StatusTemporaryRedirect,
-				err:         nil,
+				response: "https://dzen.ru",
+				respErr:  nil,
+				status:   http.StatusTemporaryRedirect,
 			},
 		},
 		{
-			name:    "Negative GET #1",
-			route:   "MissingRoute",
-			longURL: "",
-			method:  http.MethodGet,
+			name:      "Negative GET #1",
+			route:     "/QwsDqr1",
+			callTimes: 1,
+			longURL:   "Missing",
+			method:    GET,
 			want: want{
-				contentType: `"text/plain; charset=utf-8"`,
-				statusCode:  http.StatusBadRequest,
-				err:         storage.ErrURLNotFound,
+				response: "asd",
+				respErr:  storage.ErrURLDeleted,
+				status:   http.StatusGone,
+			},
+		},
+		{
+			name:      "Negative GET #2",
+			route:     "/BadRequestShort",
+			callTimes: 1,
+			longURL:   "BadRequest",
+			method:    GET,
+			want: want{
+				response: "",
+				respErr:  errors.New("unexpected error leading to 400"),
+				status:   http.StatusBadRequest,
 			},
 		},
 	}
-	for _, tt := range cases {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockedDB.On("Save", tt.route, tt.longURL).Return()
-			mockedDB.On("Get", tt.route).Return(tt.longURL, tt.want.err)
+			ctx := context.Background()
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-			router := chi.NewRouter()
-			router.Get("/{id}", GetHandler(svc))
-			r := httptest.NewRequest(tt.method, "/"+tt.route, http.NoBody)
+			mockStore := mocks.NewMockURLStorage(ctrl)
+			mockStore.EXPECT().Get(ctx, gomock.Any()).Times(tt.callTimes).Return(tt.want.response, tt.want.respErr)
+
+			svc := &service.Service{Storage: mockStore, BaseURL: cfg.Service.BaseURL, Log: log}
+			handler := GetHandler(svc)
+			req, err := http.NewRequest(GET, tt.route, http.NoBody)
+			assert.NoError(t, err)
+
 			w := httptest.NewRecorder()
-			router.ServeHTTP(w, r)
 
-			res := w.Result()
-			_, err := io.ReadAll(res.Body)
-			if err != nil {
-				return
-			}
-			err = res.Body.Close() // так требует golangci, defer с безымянной функцией не хочет
-			if err != nil {
-				return
-			}
-
-			require.NoError(t, err)
-			assert.NotEmpty(t, res.Body)
-			assert.Equal(t, tt.want.statusCode, res.StatusCode)
+			handler(w, req)
+			resp := w.Result()
+			assert.NoError(t, resp.Body.Close())
+			assert.Equal(t, tt.want.status, resp.StatusCode)
 		})
 	}
 }

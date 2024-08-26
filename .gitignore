@@ -24,3 +24,5 @@ vendor/
 golangci-lint/
 .golangci.yml
 data.csv
+coverage.html
+profile.cov

@@ -1,3 +1,4 @@
+// Package models using for describe request and response models.
 package models
 
 // ShortenRequest shorten request model.

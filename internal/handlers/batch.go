@@ -28,7 +28,7 @@ func BatchHandler(svc *service.Service) http.HandlerFunc {
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&req); err != nil {
 			svc.Log.Err("failed to decode request body: ", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(500)
 			return
 		}
 		defer func() {

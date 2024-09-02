@@ -1,3 +1,4 @@
+// Package logger using for describe custom logger.
 package logger
 
 import (

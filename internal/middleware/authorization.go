@@ -1,3 +1,4 @@
+// Package middleware using for processing requests with additional business logic.
 package middleware
 
 import (

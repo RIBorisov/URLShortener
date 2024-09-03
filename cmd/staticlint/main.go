@@ -5,12 +5,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/kisielk/errcheck/errcheck"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shadow"
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"honnef.co/go/tools/staticcheck"
+
+	"shortener/cmd/exitcheckanalyzer"
 )
 
 // Config — имя файла конфигурации.
@@ -35,10 +38,11 @@ func main() {
 		panic(err)
 	}
 	mychecks := []*analysis.Analyzer{
-		ErrCheckAnalyzer,
+		exitcheckanalyzer.ExitCheckAnalyzer,
 		printf.Analyzer,
 		shadow.Analyzer,
 		structtag.Analyzer,
+		errcheck.Analyzer,
 	}
 	checks := make(map[string]bool)
 	for _, v := range cfg.Staticcheck {

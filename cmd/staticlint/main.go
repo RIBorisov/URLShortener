@@ -21,7 +21,7 @@ const Config = `config.json`
 
 // ConfigData описывает структуру файла конфигурации.
 type ConfigData struct {
-	Staticcheck []string
+	Staticcheck []string `json:"staticcheck"`
 }
 
 func main() {

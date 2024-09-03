@@ -56,5 +56,5 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return true
 		})
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // we have to return nil, nil
 }

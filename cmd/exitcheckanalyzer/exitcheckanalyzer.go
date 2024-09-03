@@ -15,6 +15,7 @@ const (
 	specFunctionPrfx = "os"
 )
 
+// ExitCheckAnalyzer analyses main function for os.Exit() calls.
 var ExitCheckAnalyzer = &analysis.Analyzer{
 	Name: "exitcheck",
 	Doc:  "check for calling os.Exit()",

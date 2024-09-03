@@ -11,6 +11,7 @@ func main() {
 	callExit(1)
 }
 
+// Exit func ...
 func Exit(i int) {
 	fmt.Println(i)
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 )
 
+// ExportMain is an exported function that can be accessed from other packages.
 func ExportMain() {
 	main()
 	os.Exit(1)
@@ -16,6 +17,7 @@ func main() {
 	callExit(1)
 }
 
+// Exit is not an exported function and is not accessible from other packages.
 func Exit(i int) {
 	fmt.Println(i)
 }

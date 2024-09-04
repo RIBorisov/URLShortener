@@ -76,6 +76,7 @@ func ReadFileStorage(filename string) (map[string]URLRecord, error) {
 			OriginalURL: urlRecord.OriginalURL,
 			ShortURL:    urlRecord.ShortURL,
 			UserID:      urlRecord.UserID,
+			Deleted:     urlRecord.Deleted,
 		}
 	}
 

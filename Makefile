@@ -62,9 +62,14 @@ coverage:
 
 PACKAGES := $(shell go list ./... | grep -vE "mocks|models|logger|storage|service" | tr '\n' ' ')
 
+#.PHONY: tests
+#tests:
+#	go list ./... | grep -vE "mocks"|xargs go test -v -coverpkg=$1 -coverprofile=profile.cov $1
+#	go tool cover -func profile.cov
+
 .PHONY: tests
 tests:
-	go list ./... | grep -vE "mocks"|xargs go test -v -coverpkg=$1 -coverprofile=profile.cov $1
+	go test -v -coverpkg=./... -coverprofile=profile.cov ./...
 	go tool cover -func profile.cov
 
 .PHONY: prof

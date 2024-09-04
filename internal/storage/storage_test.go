@@ -20,6 +20,10 @@ import (
 const (
 	baseLongURL  = "https://example.com"
 	baseShortURL = "short"
+	short1       = "short1"
+	short2       = "short2"
+	user1        = "user1"
+	user2        = "user2"
 )
 
 func TestClose_InMemory(t *testing.T) {
@@ -136,12 +140,7 @@ func TestBatchSave_InMemory(t *testing.T) {
 }
 
 func TestInMemoryCleanup(t *testing.T) {
-	const (
-		short1 = "short1"
-		short2 = "short2"
-		user1  = "user1"
-		user2  = "user2"
-	)
+
 	log := &logger.Log{}
 	log.Initialize("INFO")
 	mem := &inMemory{
@@ -240,4 +239,57 @@ func TestInFileDeleteURLs(t *testing.T) {
 	assert.Equal(t, 2, len(urls))
 	assert.True(t, urls["short1"].Deleted)
 	assert.False(t, urls["short2"].Deleted)
+}
+
+func TestInFileCleanup(t *testing.T) {
+	const (
+		short1 = "short1"
+		short2 = "short2"
+		user1  = "user1"
+		user2  = "user2"
+	)
+	log := &logger.Log{}
+	log.Initialize("INFO")
+	tmpDir := path.Join(os.TempDir(), strconv.FormatInt(time.Now().Unix(), 10))
+	err := os.MkdirAll(tmpDir, 0755)
+	assert.NoError(t, err)
+	tmpFile, err := os.CreateTemp(tmpDir, filename)
+	assert.NoError(t, err)
+	defer func() {
+		assert.NoError(t, tmpFile.Close())
+	}()
+	defer func() {
+		assert.NoError(t, os.RemoveAll(tmpDir))
+	}()
+	mem := inMemory{
+		Log:  log,
+		mux:  &sync.Mutex{},
+		cfg:  &config.Config{},
+		urls: make(map[string]URLRecord),
+	}
+	inFl := &inFile{inMemory: mem, filePath: tmpFile.Name()}
+
+	inFl.inMemory.urls["short1"] = URLRecord{
+		UUID:        "1",
+		OriginalURL: "https://example1.com",
+		ShortURL:    short1,
+		UserID:      user1,
+		Deleted:     true,
+	}
+	inFl.inMemory.urls["short2"] = URLRecord{
+		UUID:        "2",
+		OriginalURL: "https://example2.com",
+		ShortURL:    short2,
+		UserID:      user2,
+		Deleted:     false,
+	}
+
+	cleaned, err := inFl.Cleanup(context.Background())
+	assert.NoError(t, err)
+
+	expected := []string{short1}
+	assert.Equal(t, len(expected), len(cleaned))
+
+	assert.True(t, inFl.inMemory.urls[short1].Deleted)
+	assert.False(t, inFl.inMemory.urls[short2].Deleted)
 }

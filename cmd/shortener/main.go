@@ -16,7 +16,7 @@ import (
 )
 
 // Version - version of the application.
-// BuildTime - time when the application was built
+// BuildTime - time when the application was built.
 var (
 	Version   string
 	BuildTime string

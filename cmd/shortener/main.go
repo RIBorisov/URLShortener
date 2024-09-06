@@ -15,14 +15,9 @@ import (
 	"shortener/internal/storage"
 )
 
-// Version - version of the application.
-// BuildTime - time when the application was built.
-var (
-	Version   string
-	BuildTime string
-)
-
 // main is the entry point for the URL shortener application.
+//
+//go:generate go run ./../metadata/metadata.go
 func main() {
 	log := &logger.Log{}
 	log.Initialize("INFO")
@@ -72,8 +67,9 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		"server starting...",
 		slog.String("host", cfg.Service.ServerAddress),
 		slog.String("base URL", cfg.Service.BaseURL),
-		slog.String("version", Version),
-		slog.String("build time", BuildTime),
+		slog.String("version", BuildVersion),
+		slog.String("date", BuildDate),
+		slog.String("commit", BuildCommit),
 	)
 
 	return srv.ListenAndServe()

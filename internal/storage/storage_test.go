@@ -140,7 +140,6 @@ func TestBatchSave_InMemory(t *testing.T) {
 }
 
 func TestInMemoryCleanup(t *testing.T) {
-
 	log := &logger.Log{}
 	log.Initialize("INFO")
 	mem := &inMemory{

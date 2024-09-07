@@ -17,7 +17,7 @@ import (
 
 // main is the entry point for the URL shortener application.
 //
-//go:generate go run ./../metadata/metadata.go
+//go:generate go run ./../metadata/gen_meta.go
 func main() {
 	log := &logger.Log{}
 	log.Initialize("INFO")
@@ -67,9 +67,9 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		"server starting...",
 		slog.String("host", cfg.Service.ServerAddress),
 		slog.String("base URL", cfg.Service.BaseURL),
-		slog.String("version", BuildVersion),
-		slog.String("date", BuildDate),
-		slog.String("commit", BuildCommit),
+		slog.String("version", buildVersion),
+		slog.String("date", buildDate),
+		slog.String("commit", buildCommit),
 	)
 
 	return srv.ListenAndServe()

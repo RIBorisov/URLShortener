@@ -30,7 +30,9 @@ func TestCompressWriter(t *testing.T) {
 	defer func() {
 		assert.NoError(t, zr.Close())
 	}()
-	_, err = io.Copy(&buf, zr)
+	const maxDecompressedSize = 1024
+	lr := io.LimitReader(zr, maxDecompressedSize)
+	_, err = io.Copy(&buf, lr)
 	assert.NoError(t, err)
 	assert.Equal(t, string(data), buf.String())
 }

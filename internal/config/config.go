@@ -1,3 +1,4 @@
+// Package config uses for configure project.
 package config
 
 import (

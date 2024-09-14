@@ -1,3 +1,4 @@
+// Package handlers using for routing user requests.
 package handlers
 
 import (

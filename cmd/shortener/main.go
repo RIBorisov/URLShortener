@@ -15,6 +15,12 @@ import (
 	"shortener/internal/storage"
 )
 
+var (
+	buildVersion = "N/A"
+	buildCommit  = "N/A"
+	buildDate    = "N/A"
+)
+
 // main is the entry point for the URL shortener application.
 func main() {
 	log := &logger.Log{}
@@ -64,7 +70,10 @@ func initApp(ctx context.Context, log *logger.Log) error {
 	log.Info(
 		"server starting...",
 		slog.String("host", cfg.Service.ServerAddress),
-		slog.String("BaseURL", cfg.Service.BaseURL),
+		slog.String("base URL", cfg.Service.BaseURL),
+		slog.String("Build version", buildVersion),
+		slog.String("Build date", buildDate),
+		slog.String("Build commit", buildCommit),
 	)
 
 	return srv.ListenAndServe()

@@ -1,5 +1,5 @@
 # URL Shortener service
-[![Coverage Status](https://img.shields.io/badge/coverage-40.4%25-brightgreen)](https://github.com/RIBorisov/gophermart/coverage.html)
+[![Coverage Status](https://img.shields.io/badge/coverage-55.9%25-brightgreen)](https://github.com/RIBorisov/gophermart/coverage.html)
 # Сервис URL-коротких ссылок
 
 ## Описание
@@ -77,4 +77,11 @@
 Чтобы запустить тесты и проверить покрытие, выполните следующую команду из корня репозитория:
 ```bash
 make tests
+```
+
+## Сборка и запуск сервиса
+
+Для сборки и запуска проекта нужно выполнить следующую команду. Автоматически будут подставлены дата сборки и хэш последнего коммита
+```bash
+make build-app version=v.8.1.0 # значение версии должно быть без пробелов
 ```

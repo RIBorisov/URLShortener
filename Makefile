@@ -62,9 +62,14 @@ coverage:
 
 PACKAGES := $(shell go list ./... | grep -vE "mocks|models|logger|storage|service" | tr '\n' ' ')
 
+#.PHONY: tests
+#tests:
+#	go list ./... | grep -vE "mocks"|xargs go test -v -coverpkg=$1 -coverprofile=profile.cov $1
+#	go tool cover -func profile.cov
+
 .PHONY: tests
 tests:
-	go list ./... | grep -vE "mocks"|xargs go test -v -coverpkg=$1 -coverprofile=profile.cov $1
+	go test -v -coverpkg=./... -coverprofile=profile.cov ./...
 	go tool cover -func profile.cov
 
 .PHONY: prof
@@ -82,3 +87,13 @@ save-base-pprof:
 gen-mocks:
 	mockgen -source=internal/service/service.go -destination=internal/service/mocks/service_mock.gen.go -package=mocks
 
+DIR := cmd/shortener
+APP_NAME := shortener
+COMMIT_HASH := $(shell git rev-parse --short=8 HEAD)
+DATE := $(shell date +%Y-%m-%d)
+
+.PHONY: build-app
+build-app:
+	cd $(DIR) && \
+	go build -ldflags "-X main.buildVersion=$(version) -X main.buildDate=$(DATE) -X main.buildCommit=$(COMMIT_HASH)" -o $(APP_NAME)
+	cd $(DIR) && ./$(APP_NAME)

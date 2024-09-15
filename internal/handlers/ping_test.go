@@ -62,7 +62,7 @@ func TestPingHandler(t *testing.T) {
 			mockStore := mocks.NewMockURLStorage(ctrl)
 			mockStore.EXPECT().Ping(ctx).Times(tt.callTimes).Return(tt.want.respErr)
 
-			svc := &service.Service{Storage: mockStore, BaseURL: cfg.Service.BaseURL, Log: log}
+			svc := &service.Service{Storage: mockStore, BaseURL: cfg.App.BaseURL, Log: log}
 			handler := PingHandler(svc)
 			req, err := http.NewRequest(GET, route, http.NoBody)
 			assert.NoError(t, err)

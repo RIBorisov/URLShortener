@@ -28,7 +28,9 @@ func Test_initApp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("SERVER_ADDRESS", ":8080")
+			t.Setenv("SERVER_ADDRESS", "localhost")
+			t.Setenv("SERVER_PORT", "8080")
+			t.Setenv("ENABLE_HTTPS", "0")
 			tt.args.log.Initialize("INFO")
 
 			shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), 500*time.Millisecond)

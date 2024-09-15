@@ -67,7 +67,7 @@ func TestDeleteURLsHandler(t *testing.T) {
 			mockStore := mocks.NewMockURLStorage(ctrl)
 			mockStore.EXPECT().DeleteURLs(ctx, gomock.Any()).Times(tt.callTimes).Return(tt.want.respErr)
 
-			svc := &service.Service{Storage: mockStore, BaseURL: cfg.Service.BaseURL, Log: log}
+			svc := &service.Service{Storage: mockStore, BaseURL: cfg.App.BaseURL, Log: log}
 			handler := DeleteURLsHandler(svc)
 
 			req, err := http.NewRequest(DELETE, route, bytes.NewBufferString(tt.body))

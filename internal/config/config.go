@@ -2,8 +2,11 @@
 package config
 
 import (
+	"log"
 	"os"
 	"time"
+
+	"github.com/caarlos0/env/v11"
 )
 
 const (
@@ -11,6 +14,7 @@ const (
 	dbDSN             = "DATABASE_DSN"
 	baseURL           = "BASE_URL"
 	serverAddress     = "SERVER_ADDRESS"
+	serverPort        = "SERVER_PORT"
 	fileStoragePath   = "FILE_STORAGE_PATH"
 	secretKey         = "SECRET_KEY"
 	secretKeyValue    = "!@#$YdBg0DS"
@@ -19,25 +23,34 @@ const (
 
 // ServiceConfig contains common config entities.
 type ServiceConfig struct {
-	ServerAddress             string        `env:"SERVER_ADDRESS" env-default:":8080"`
-	BaseURL                   string        `env:"BASE_URL" env-default:"http://localhost:8080"`
-	FileStoragePath           string        `env:"FILE_STORAGE_PATH" env-default:"/tmp/short-url-db.json"`
-	DatabaseDSN               string        `env:"DATABASE_DSN"`
 	SecretKey                 string        `env:"SECRET_KEY"`
 	BackgroundCleanup         bool          `env:"BACKGROUND_CLEANUP"`
 	BackgroundCleanupInterval time.Duration `env:"BACKGROUND_CLEANUP_INTERVAL"`
 }
 
+type AppConfig struct {
+	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"localhost"`
+	BaseURL         string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/short-url-db.json"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
+	ServerPort      int    `env:"SERVER_PORT" envDefault:"8080"`
+	EnableHTTPS     bool   `env:"ENABLE_HTTPS" envDefault:"0"`
+}
+
 // Config contains main config structures.
 type Config struct {
+	App     AppConfig
 	Service ServiceConfig
 }
 
 // LoadConfig loads the config.
 func LoadConfig() *Config {
-	var cfg Config
+	cfg := &Config{}
+	if err := env.Parse(cfg); err != nil {
+		log.Fatal("failed to parse config")
+	}
 	f := parseFlags()
-	cfg.Service.FileStoragePath = defaultFilePath
+	cfg.App.FileStoragePath = defaultFilePath
 	cfg.Service.SecretKey = secretKeyValue
 
 	sKey, ok := os.LookupEnv(secretKey)
@@ -47,30 +60,34 @@ func LoadConfig() *Config {
 
 	dsn, ok := os.LookupEnv(dbDSN)
 	if ok {
-		cfg.Service.DatabaseDSN = dsn
+		cfg.App.DatabaseDSN = dsn
 	} else {
-		cfg.Service.DatabaseDSN = f.DatabaseDSN
+		cfg.App.DatabaseDSN = f.App.DatabaseDSN
 	}
 
 	envBaseURL, ok := os.LookupEnv(baseURL)
 	if ok {
-		cfg.Service.BaseURL = envBaseURL
+		cfg.App.BaseURL = envBaseURL
 	} else {
-		cfg.Service.BaseURL = f.BaseURL
+		cfg.App.BaseURL = f.App.BaseURL
 	}
 
 	envAddr, ok := os.LookupEnv(serverAddress)
 	if ok {
-		cfg.Service.ServerAddress = envAddr
+		cfg.App.ServerAddress = envAddr
 	} else {
-		cfg.Service.ServerAddress = f.ServerAddress
+		cfg.App.ServerAddress = f.App.ServerAddress
+	}
+
+	if !cfg.App.EnableHTTPS {
+		cfg.App.ServerPort = 8080
 	}
 
 	path, ok := os.LookupEnv(fileStoragePath)
 	if ok {
-		cfg.Service.FileStoragePath = path
-	} else if f.FileStoragePath != "" {
-		cfg.Service.FileStoragePath = f.FileStoragePath
+		cfg.App.FileStoragePath = path
+	} else if f.App.FileStoragePath != "" {
+		cfg.App.FileStoragePath = f.App.FileStoragePath
 	}
 
 	_, ok = os.LookupEnv(backgroundCleanup)
@@ -79,5 +96,5 @@ func LoadConfig() *Config {
 		cfg.Service.BackgroundCleanupInterval = time.Second * 60
 	}
 
-	return &cfg
+	return cfg
 }

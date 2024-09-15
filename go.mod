@@ -3,6 +3,7 @@ module shortener
 go 1.22.3
 
 require (
+	github.com/caarlos0/env/v11 v11.2.2
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/golang-migrate/migrate/v4 v4.17.1

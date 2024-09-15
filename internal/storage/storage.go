@@ -222,7 +222,7 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (mo
 	}
 	var resp models.BatchArray
 	for _, in := range input {
-		shortURL, err := url.JoinPath(d.cfg.Service.BaseURL, "/", in.ShortURL)
+		shortURL, err := url.JoinPath(d.cfg.App.BaseURL, "/", in.ShortURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to join url: %w", err)
 		}
@@ -416,7 +416,7 @@ func (f *inFile) BatchSave(ctx context.Context, input models.BatchArray) (models
 		return nil, errGetUserFromContext
 	}
 	defer f.mux.Unlock()
-	saved, err := BatchAppend(f.Log, f.filePath, f.cfg.Service.BaseURL, userID, input, f.counter)
+	saved, err := BatchAppend(f.Log, f.filePath, f.cfg.App.BaseURL, userID, input, f.counter)
 	if err != nil {
 		return nil, fmt.Errorf("failed append rows to file: %w", err)
 	}
@@ -468,8 +468,8 @@ func (f *inFile) restore() error {
 
 // LoadStorage loads the appropriate URL storage based on the configuration.
 func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (service.URLStorage, error) {
-	if cfg.Service.DatabaseDSN != "" {
-		db, err := New(ctx, cfg.Service.DatabaseDSN)
+	if cfg.App.DatabaseDSN != "" {
+		db, err := New(ctx, cfg.App.DatabaseDSN)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create database storage: %w", err)
 		}
@@ -477,7 +477,7 @@ func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (serv
 		return &inDatabase{db, cfg, log}, nil
 	}
 
-	if cfg.Service.FileStoragePath == "" {
+	if cfg.App.FileStoragePath == "" {
 		log.Info("using memory storage..")
 		return &inMemory{
 			urls: make(map[string]URLRecord),
@@ -493,7 +493,7 @@ func LoadStorage(ctx context.Context, cfg *config.Config, log *logger.Log) (serv
 			cfg:  cfg,
 			Log:  log,
 		},
-		filePath: cfg.Service.FileStoragePath,
+		filePath: cfg.App.FileStoragePath,
 	}
 	err := storage.restore()
 	if err != nil {

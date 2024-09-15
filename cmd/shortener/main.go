@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
+	"strconv"
 	"time"
 
 	"shortener/internal/config"
@@ -48,9 +49,9 @@ func initApp(ctx context.Context, log *logger.Log) error {
 
 	svc := &service.Service{
 		Storage:         store,
-		BaseURL:         cfg.Service.BaseURL,
-		FileStoragePath: cfg.Service.FileStoragePath,
-		DatabaseDSN:     cfg.Service.DatabaseDSN,
+		BaseURL:         cfg.App.BaseURL,
+		FileStoragePath: cfg.App.FileStoragePath,
+		DatabaseDSN:     cfg.App.DatabaseDSN,
 		Log:             log,
 		SecretKey:       cfg.Service.SecretKey,
 	}
@@ -62,21 +63,26 @@ func initApp(ctx context.Context, log *logger.Log) error {
 	}
 
 	r := handlers.NewRouter(svc)
-
+	addr := cfg.App.ServerAddress + ":" + strconv.Itoa(cfg.App.ServerPort)
 	srv := &http.Server{
-		Addr:    cfg.Service.ServerAddress,
+		Addr:    addr,
 		Handler: r,
 	}
 	log.Info(
 		"server starting...",
-		slog.String("host", cfg.Service.ServerAddress),
-		slog.String("base URL", cfg.Service.BaseURL),
+		slog.String("host", addr),
+		slog.String("base URL", cfg.App.BaseURL),
 		slog.String("Build version", buildVersion),
 		slog.String("Build date", buildDate),
 		slog.String("Build commit", buildCommit),
 	)
 
-	return srv.ListenAndServe()
+	if !cfg.App.EnableHTTPS {
+		return srv.ListenAndServe()
+	}
+	log.Info("enabling TLS..")
+
+	return srv.ListenAndServeTLS("tls/server.crt", "tls/server.key")
 }
 
 // runBackgroundCleanupDB runs a background task to clean up the storage periodically.

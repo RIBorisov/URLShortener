@@ -5,10 +5,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"shortener/internal/logger"
-	"shortener/internal/models"
 	"strings"
 	"testing"
+
+	"shortener/internal/logger"
+	"shortener/internal/models"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func TestShortenHandler(t *testing.T) {
 	s, err := storage.LoadStorage(ctx, cfg, log)
 	assert.NoError(t, err)
 
-	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL, Log: log}
+	svc := &service.Service{Storage: s, BaseURL: cfg.App.BaseURL, Log: log}
 	type want struct {
 		statusCode  int
 		contentType string

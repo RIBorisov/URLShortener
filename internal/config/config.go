@@ -27,6 +27,7 @@ type ServiceConfig struct {
 	BackgroundCleanupInterval time.Duration `env:"BACKGROUND_CLEANUP_INTERVAL"`
 }
 
+// AppConfig contains application envs.
 type AppConfig struct {
 	ServerAddress    string `env:"SERVER_ADDRESS" envDefault:":8080"`
 	ServerAddressTLS string `env:"SERVER_ADDRESS_TLS" envDefault:":8443"`

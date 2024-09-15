@@ -16,12 +16,12 @@ func TestLoadConfig(t *testing.T) {
 			name: "Positive #1",
 			want: &Config{
 				App: AppConfig{
-					ServerAddress:   "localhost",
-					ServerPort:      8080,
-					BaseURL:         "base-url.com",
-					FileStoragePath: "/tmp/file.json",
-					DatabaseDSN:     "postgresql://user:password@db-host:5432/db-name?sslmode=false",
-					EnableHTTPS:     false,
+					ServerAddress:    ":8080",
+					ServerAddressTLS: ":8443",
+					BaseURL:          "base-url.com",
+					FileStoragePath:  "/tmp/file.json",
+					DatabaseDSN:      "postgresql://user:password@db-host:5432/db-name?sslmode=false",
+					EnableHTTPS:      false,
 				},
 				Service: ServiceConfig{
 					SecretKey:                 "super",
@@ -33,8 +33,8 @@ func TestLoadConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("SERVER_ADDRESS", "localhost")
-			t.Setenv("SERVER_PORT", "8080")
+			t.Setenv("SERVER_ADDRESS", ":8080")
+			t.Setenv("SERVER_ADDRESS_TLS", ":8443")
 			t.Setenv("BASE_URL", "base-url.com")
 			t.Setenv("FILE_STORAGE_PATH", "/tmp/file.json")
 			t.Setenv("DATABASE_DSN", "postgresql://user:password@db-host:5432/db-name?sslmode=false")

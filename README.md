@@ -87,13 +87,6 @@ make build-app version=v.8.1.0 # значение версии должно бы
 ```
 
 ### Для запуска приложения с самоподписанным сертификатом, нужно:
-- установить openssl
-  - MacOS: `brew install openssl`
-  - Linux: `apt install openssl`
-- запустить генерацию ключа и сертификата
-  ```bash
-  make enable-tls
-  ```
 - запустить приложение передав флаг `-s`
   - `go run ./cmd/shortener -s`
 - или проставив переменную окружения

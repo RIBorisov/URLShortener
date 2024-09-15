@@ -26,5 +26,5 @@ golangci-lint/
 data.csv
 coverage.html
 profile.cov
-#tls/server.crt
-#tls/server.key
+tls/server.crt
+tls/server.key

@@ -97,14 +97,3 @@ build-app:
 	cd $(DIR) && \
 	go build -ldflags "-X main.buildVersion=$(version) -X main.buildDate=$(DATE) -X main.buildCommit=$(COMMIT_HASH)" -o $(APP_NAME)
 	cd $(DIR) && ./$(APP_NAME)
-
-
-TLS_DIR := tls
-CERT_NAME := server.crt
-KEY_NAME := server.key
-.PHONY: enable-tls
-enable-tls:
-	cd $(TLS_DIR) && \
-	openssl genrsa -out $(KEY_NAME) 2048 && \
-	openssl req -new -x509 -key $(KEY_NAME) -out $(CERT_NAME) -days 365 \
-	-subj "/C=ru/ST=Moscow/L=Moscow/O=URL Shortener/CN=localhost"

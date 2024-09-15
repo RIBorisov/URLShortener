@@ -14,7 +14,6 @@ const (
 	dbDSN             = "DATABASE_DSN"
 	baseURL           = "BASE_URL"
 	serverAddress     = "SERVER_ADDRESS"
-	serverPort        = "SERVER_PORT"
 	fileStoragePath   = "FILE_STORAGE_PATH"
 	secretKey         = "SECRET_KEY"
 	secretKeyValue    = "!@#$YdBg0DS"
@@ -29,12 +28,12 @@ type ServiceConfig struct {
 }
 
 type AppConfig struct {
-	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"localhost"`
-	BaseURL         string `env:"BASE_URL" envDefault:"http://localhost:8080"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/short-url-db.json"`
-	DatabaseDSN     string `env:"DATABASE_DSN"`
-	ServerPort      int    `env:"SERVER_PORT" envDefault:"8080"`
-	EnableHTTPS     bool   `env:"ENABLE_HTTPS" envDefault:"0"`
+	ServerAddress    string `env:"SERVER_ADDRESS" envDefault:":8080"`
+	ServerAddressTLS string `env:"SERVER_ADDRESS_TLS" envDefault:":8443"`
+	BaseURL          string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	FileStoragePath  string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/short-url-db.json"`
+	DatabaseDSN      string `env:"DATABASE_DSN"`
+	EnableHTTPS      bool   `env:"ENABLE_HTTPS" envDefault:"0"`
 }
 
 // Config contains main config structures.
@@ -77,10 +76,6 @@ func LoadConfig() *Config {
 		cfg.App.ServerAddress = envAddr
 	} else {
 		cfg.App.ServerAddress = f.App.ServerAddress
-	}
-
-	if !cfg.App.EnableHTTPS {
-		cfg.App.ServerPort = 8080
 	}
 
 	path, ok := os.LookupEnv(fileStoragePath)

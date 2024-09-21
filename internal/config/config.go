@@ -60,7 +60,7 @@ func LoadConfig() *Config {
 	fPath, ok := os.LookupEnv("CONFIG")
 	if ok {
 		fromFile = LoadConfigFromFile(fPath)
-	} else {
+	} else { //nolint:gocritic // don't want switch here
 		if f.App.ConfigFilePath != "" {
 			fromFile = LoadConfigFromFile(f.App.ConfigFilePath)
 		}
@@ -72,7 +72,7 @@ func LoadConfig() *Config {
 	}
 
 	dsn, ok := os.LookupEnv(dbDSN)
-	if ok {
+	if ok { //nolint:gocritic // don't want switch here
 		cfg.App.DatabaseDSN = dsn
 	} else if f.App.DatabaseDSN != "" {
 		cfg.App.DatabaseDSN = f.App.DatabaseDSN
@@ -81,7 +81,7 @@ func LoadConfig() *Config {
 	}
 
 	envBaseURL, ok := os.LookupEnv(baseURL)
-	if ok {
+	if ok { //nolint:gocritic // don't want switch here
 		cfg.App.BaseURL = envBaseURL
 	} else if f.App.BaseURL != "" {
 		cfg.App.BaseURL = f.App.BaseURL
@@ -90,7 +90,7 @@ func LoadConfig() *Config {
 	}
 
 	envAddr, ok := os.LookupEnv(serverAddress)
-	if ok {
+	if ok { //nolint:gocritic // don't want switch here
 		cfg.App.ServerAddress = envAddr
 	} else if f.App.ServerAddress != "" {
 		cfg.App.ServerAddress = f.App.ServerAddress
@@ -99,7 +99,7 @@ func LoadConfig() *Config {
 	}
 
 	path, ok := os.LookupEnv(fileStoragePath)
-	if ok {
+	if ok { //nolint:gocritic // don't want switch here
 		cfg.App.FileStoragePath = path
 	} else if f.App.FileStoragePath != "" {
 		cfg.App.FileStoragePath = f.App.FileStoragePath

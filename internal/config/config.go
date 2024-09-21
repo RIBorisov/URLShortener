@@ -4,9 +4,11 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 const (
@@ -34,6 +36,7 @@ type AppConfig struct {
 	BaseURL          string `env:"BASE_URL" envDefault:"http://localhost:8080"`
 	FileStoragePath  string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/short-url-db.json"`
 	DatabaseDSN      string `env:"DATABASE_DSN"`
+	ConfigFilePath   string ``
 	EnableHTTPS      bool   `env:"ENABLE_HTTPS" envDefault:"0"`
 }
 
@@ -53,6 +56,16 @@ func LoadConfig() *Config {
 	cfg.App.FileStoragePath = defaultFilePath
 	cfg.Service.SecretKey = secretKeyValue
 
+	fromFile := &Config{}
+	fPath, ok := os.LookupEnv("CONFIG")
+	if ok {
+		fromFile = LoadConfigFromFile(fPath)
+	} else {
+		if f.App.ConfigFilePath != "" {
+			fromFile = LoadConfigFromFile(f.App.ConfigFilePath)
+		}
+	}
+
 	sKey, ok := os.LookupEnv(secretKey)
 	if ok {
 		cfg.Service.SecretKey = sKey
@@ -61,22 +74,28 @@ func LoadConfig() *Config {
 	dsn, ok := os.LookupEnv(dbDSN)
 	if ok {
 		cfg.App.DatabaseDSN = dsn
-	} else {
+	} else if f.App.DatabaseDSN != "" {
 		cfg.App.DatabaseDSN = f.App.DatabaseDSN
+	} else {
+		cfg.App.DatabaseDSN = fromFile.App.DatabaseDSN
 	}
 
 	envBaseURL, ok := os.LookupEnv(baseURL)
 	if ok {
 		cfg.App.BaseURL = envBaseURL
-	} else {
+	} else if f.App.BaseURL != "" {
 		cfg.App.BaseURL = f.App.BaseURL
+	} else {
+		cfg.App.BaseURL = fromFile.App.BaseURL
 	}
 
 	envAddr, ok := os.LookupEnv(serverAddress)
 	if ok {
 		cfg.App.ServerAddress = envAddr
-	} else {
+	} else if f.App.ServerAddress != "" {
 		cfg.App.ServerAddress = f.App.ServerAddress
+	} else {
+		cfg.App.ServerAddress = fromFile.App.ServerAddress
 	}
 
 	path, ok := os.LookupEnv(fileStoragePath)
@@ -84,6 +103,22 @@ func LoadConfig() *Config {
 		cfg.App.FileStoragePath = path
 	} else if f.App.FileStoragePath != "" {
 		cfg.App.FileStoragePath = f.App.FileStoragePath
+	} else {
+		cfg.App.FileStoragePath = fromFile.App.FileStoragePath
+	}
+
+	v, ok := os.LookupEnv("EnableHTTPS")
+	if !ok {
+		if f.App.EnableHTTPS || fromFile.App.EnableHTTPS {
+			cfg.App.EnableHTTPS = true
+		}
+	} else {
+		val, err := strconv.ParseBool(v)
+		if err != nil {
+			cfg.App.EnableHTTPS = false
+		} else {
+			cfg.App.EnableHTTPS = val
+		}
 	}
 
 	_, ok = os.LookupEnv(backgroundCleanup)
@@ -93,4 +128,19 @@ func LoadConfig() *Config {
 	}
 
 	return cfg
+}
+
+func LoadConfigFromFile(configPath string) *Config {
+	// check if file exists
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		log.Fatalf("config file does not exist: %s", configPath)
+	}
+
+	var cfg Config
+
+	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
+		log.Fatalf("cannot read config: %s", err)
+	}
+
+	return &cfg
 }

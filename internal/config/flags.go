@@ -14,6 +14,7 @@ func parseFlags() *Config {
 		flag.StringVar(&c.App.DatabaseDSN, "d", "", "Database DSN")
 		flag.StringVar(&c.Service.SecretKey, "secret", "", "Secret key")
 		flag.BoolVar(&c.App.EnableHTTPS, "s", false, "Enable HTTPS")
+		flag.StringVar(&c.App.ConfigFilePath, "c", "", "Config file path")
 		flag.Parse()
 	}
 	return &c

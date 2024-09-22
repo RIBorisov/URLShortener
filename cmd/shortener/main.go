@@ -107,7 +107,7 @@ func initApp(log *logger.Log) error {
 	// graceful shutdown enabling
 	readyToShutdown := make(chan struct{})
 	sigint := make(chan os.Signal, 1)
-	signal.Notify(sigint, os.Interrupt)
+	signal.Notify(sigint, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		gracefulShutdown(ctx, log, sigint, srv)
 	}()

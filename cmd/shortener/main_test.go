@@ -36,7 +36,7 @@ func Test_initApp(t *testing.T) {
 			defer shutdownRelease()
 
 			go func() {
-				err := initApp(shutdownCtx, tt.args.log)
+				err := initApp(tt.args.log)
 				assert.NoError(t, err)
 			}()
 			<-shutdownCtx.Done()

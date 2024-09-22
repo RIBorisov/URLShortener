@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -16,7 +17,11 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"shortener/internal/config"
 	"shortener/internal/handlers"
@@ -34,17 +39,26 @@ var (
 // main is the entry point for the URL shortener application.
 func main() {
 	log := &logger.Log{}
-	log.Initialize("INFO")
-	ctx := context.Background()
-	if err := initApp(ctx, log); err != nil {
-		log.Fatal("unexpected error occurred when initializing application", err)
+	log.Initialize("DEBUG")
+
+	if err := initApp(log); err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			log.Info("server closed")
+		} else {
+			log.Fatal("unexpected error occurred when initializing application", err)
+		}
 	}
 }
 
 // initApp initializes the URL shortener application.
 //
 // It loads the configuration, initializes the storage, and starts the HTTP server.
-func initApp(ctx context.Context, log *logger.Log) error {
+func initApp(log *logger.Log) error {
+	ctx, cancelCtx := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer cancelCtx()
+
+	g, ctx := errgroup.WithContext(ctx)
+
 	cfg := config.LoadConfig()
 	store, err := storage.LoadStorage(ctx, cfg, log)
 	if err != nil {
@@ -68,7 +82,13 @@ func initApp(ctx context.Context, log *logger.Log) error {
 	if cfg.Service.BackgroundCleanup {
 		interval := cfg.Service.BackgroundCleanupInterval
 		log.Info("starting storage cleanup task", "period", interval)
-		runBackgroundCleanupDB(ctx, store, log, interval)
+		g.Go(func() error {
+			log.Info("==> BACKGOUR_CLEANUP ЗАШЕЛ")
+			runBackgroundCleanupDB(ctx, store, log, interval)
+			<-ctx.Done()
+			log.Debug("closing run runBackgroundCleanupDB goroutine")
+			return nil
+		})
 	}
 
 	r := handlers.NewRouter(svc)
@@ -80,18 +100,54 @@ func initApp(ctx context.Context, log *logger.Log) error {
 		slog.String("Build date", buildDate),
 		slog.String("Build commit", buildCommit),
 	)
-
-	if !cfg.App.EnableHTTPS {
-		return http.ListenAndServe(cfg.App.ServerAddress, r)
-	}
-	log.Info("enabling TLS..")
-	cert, key, err := prepareTLS(log)
-	if err != nil {
-		log.Err("failed to prepare TLS cert and key", err)
-		return err
+	srv := &http.Server{
+		Addr:    cfg.App.ServerAddress,
+		Handler: r,
 	}
 
-	return http.ListenAndServeTLS(cfg.App.ServerAddressTLS, cert, key, r)
+	g.Go(func() error {
+		// run without TLS
+		if !cfg.App.EnableHTTPS {
+			log.Info("TLS disabled..")
+			if err = srv.ListenAndServe(); err != nil {
+				if !errors.Is(err, http.ErrServerClosed) {
+					return fmt.Errorf("failed listen and serve: %w", err)
+				}
+			}
+		} else {
+			log.Info("==> ENABLE_TLS ЗАШЕЛ")
+			log.Info("enabling TLS..")
+			cert, key, tlsErr := prepareTLS(log)
+			if tlsErr != nil {
+				log.Err("failed to prepare TLS cert and key", err)
+				return tlsErr
+			}
+			if err = srv.ListenAndServeTLS(cert, key); err != nil {
+				if errors.Is(err, http.ErrServerClosed) {
+					svc.Log.Info("server closed")
+				} else {
+					return fmt.Errorf("failed listen and serve: %w", err)
+				}
+			}
+		}
+		<-ctx.Done()
+		log.Debug("closing server main goroutine")
+		return nil
+	})
+
+	<-ctx.Done()
+	log.Info("received signal to stop application")
+
+	if shutdownErr := srv.Shutdown(ctx); shutdownErr != nil {
+		return shutdownErr
+	}
+	log.Info("closed all goroutines, now we may shutdown the server")
+	if err = g.Wait(); err != nil {
+		log.Err("failed to wait for all goroutines finished", err)
+	}
+	log.Info("server shutdown complete..")
+
+	return nil
 }
 
 // runBackgroundCleanupDB runs a background task to clean up the storage periodically.
@@ -100,9 +156,14 @@ func initApp(ctx context.Context, log *logger.Log) error {
 func runBackgroundCleanupDB(ctx context.Context, store service.URLStorage, log *logger.Log, interval time.Duration) {
 	const op = "background cleanup task."
 
-	go func() {
-		ticker := time.NewTicker(interval)
-		for range ticker.C {
+	ticker := time.NewTicker(interval)
+	for range ticker.C {
+		select {
+		case <-ctx.Done():
+			log.Debug("Stopping ticker..")
+			ticker.Stop()
+			return
+		default:
 			urls, err := store.Cleanup(ctx)
 			if err != nil {
 				log.Err("failed cleanup storage", err)
@@ -113,7 +174,7 @@ func runBackgroundCleanupDB(ctx context.Context, store service.URLStorage, log *
 				log.Info(op+" Nothing to delete. Going to sleep", "time", interval)
 			}
 		}
-	}()
+	}
 }
 
 func prepareTLS(log *logger.Log) (string, string, error) {

@@ -62,7 +62,7 @@ func initApp(log *logger.Log) error {
 	cfg := config.LoadConfig()
 	store, err := storage.LoadStorage(ctx, cfg, log)
 	if err != nil {
-		log.Err("failed to load storage: ", err)
+		return fmt.Errorf("failed to load storage: %w", err)
 	}
 	defer func() {
 		if err = store.Close(); err != nil {
@@ -83,7 +83,6 @@ func initApp(log *logger.Log) error {
 		interval := cfg.Service.BackgroundCleanupInterval
 		log.Info("starting storage cleanup task", "period", interval)
 		g.Go(func() error {
-			log.Info("==> BACKGOUR_CLEANUP ЗАШЕЛ")
 			runBackgroundCleanupDB(ctx, store, log, interval)
 			<-ctx.Done()
 			log.Debug("closing run runBackgroundCleanupDB goroutine")

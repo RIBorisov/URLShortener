@@ -105,6 +105,15 @@ func initApp(log *logger.Log) error {
 		Handler: r,
 	}
 
+	// graceful shutdown enabling
+	readyToShutdown := make(chan struct{})
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, os.Interrupt)
+	go func() {
+		gracefulShutdown(ctx, log, sigint, srv)
+	}()
+
+	// run the server
 	g.Go(func() error {
 		// run without TLS
 		if !cfg.App.EnableHTTPS {
@@ -115,7 +124,6 @@ func initApp(log *logger.Log) error {
 				}
 			}
 		} else {
-			log.Info("==> ENABLE_TLS ЗАШЕЛ")
 			log.Info("enabling TLS..")
 			cert, key, tlsErr := prepareTLS(log)
 			if tlsErr != nil {
@@ -123,29 +131,24 @@ func initApp(log *logger.Log) error {
 				return tlsErr
 			}
 			if err = srv.ListenAndServeTLS(cert, key); err != nil {
-				if errors.Is(err, http.ErrServerClosed) {
-					svc.Log.Info("server closed")
-				} else {
+				if !errors.Is(err, http.ErrServerClosed) {
 					return fmt.Errorf("failed listen and serve: %w", err)
 				}
 			}
 		}
 		<-ctx.Done()
-		log.Debug("closing server main goroutine")
+		log.Debug("closed server main goroutine")
 		return nil
 	})
 
 	<-ctx.Done()
 	log.Info("received signal to stop application")
 
-	if shutdownErr := srv.Shutdown(ctx); shutdownErr != nil {
-		return shutdownErr
-	}
-	log.Info("closed all goroutines, now we may shutdown the server")
 	if err = g.Wait(); err != nil {
 		log.Err("failed to wait for all goroutines finished", err)
 	}
-	log.Info("server shutdown complete..")
+	log.Info("closed all goroutines, now we may shutdown the server")
+	close(readyToShutdown)
 
 	return nil
 }
@@ -252,4 +255,12 @@ func prepareTLS(log *logger.Log) (string, string, error) {
 	}
 
 	return certFilePath, keyFilePath, nil
+}
+
+func gracefulShutdown(ctx context.Context, log *logger.Log, sigint chan os.Signal, srv *http.Server) {
+	<-sigint
+	if shutdownErr := srv.Shutdown(ctx); shutdownErr != nil {
+		log.Err("failed to shutdown server", shutdownErr)
+	}
+	log.Info("graceful shutdown complete..")
 }

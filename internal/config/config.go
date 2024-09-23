@@ -132,11 +132,6 @@ func LoadConfig() *Config {
 
 // LoadConfigFromFile loads config from file.
 func LoadConfigFromFile(configPath string) *Config {
-	// check if file exists
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Fatalf("config file does not exist: %s", configPath)
-	}
-
 	var cfg Config
 
 	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {

@@ -111,12 +111,7 @@ func initApp(log *logger.Log) error {
 				}
 			}
 		} else {
-			cert, key, tlsErr := config.NewCertAndKey(log)
-			if tlsErr != nil {
-				log.Err("failed to prepare TLS cert and key", err)
-				return tlsErr
-			}
-			if err = srv.ListenAndServeTLS(cert, key); err != nil {
+			if err = srv.ListenAndServeTLS("tls/server.crt", "tls/server.key"); err != nil {
 				if !errors.Is(err, http.ErrServerClosed) {
 					return fmt.Errorf("failed listen and serve: %w", err)
 				}

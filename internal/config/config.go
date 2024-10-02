@@ -15,6 +15,7 @@ const (
 	defaultFilePath   = "/tmp/short-url-db.json"
 	dbDSN             = "DATABASE_DSN"
 	baseURL           = "BASE_URL"
+	trustedSubnet     = "TRUSTED_SUBNET"
 	serverAddress     = "SERVER_ADDRESS"
 	fileStoragePath   = "FILE_STORAGE_PATH"
 	secretKey         = "SECRET_KEY"
@@ -36,8 +37,9 @@ type AppConfig struct {
 	BaseURL          string `env:"BASE_URL" envDefault:"http://localhost:8080"`
 	FileStoragePath  string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/short-url-db.json"`
 	DatabaseDSN      string `env:"DATABASE_DSN"`
-	ConfigFilePath   string ``
+	ConfigFilePath   string `env:"CONFIG" envDefault:""`
 	EnableHTTPS      bool   `env:"ENABLE_HTTPS" envDefault:"0"`
+	TrustedSubnet    string `env:"TRUSTED_SUBNET"`
 }
 
 // Config contains main config structures.
@@ -87,6 +89,12 @@ func LoadConfig() *Config {
 		cfg.App.BaseURL = f.App.BaseURL
 	} else {
 		cfg.App.BaseURL = fromFile.App.BaseURL
+	}
+
+	if sub, ok := os.LookupEnv(trustedSubnet); ok {
+		cfg.App.TrustedSubnet = sub
+	} else {
+		cfg.App.TrustedSubnet = f.App.TrustedSubnet
 	}
 
 	envAddr, ok := os.LookupEnv(serverAddress)

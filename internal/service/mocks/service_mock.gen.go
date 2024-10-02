@@ -155,3 +155,18 @@ func (mr *MockURLStorageMockRecorder) Save(ctx, shortLink, longLink any) *gomock
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockURLStorage)(nil).Save), ctx, shortLink, longLink)
 }
+
+// ServiceStats mocks base method.
+func (m *MockURLStorage) ServiceStats(ctx context.Context) (models.Stats, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ServiceStats", ctx)
+	ret0, _ := ret[0].(models.Stats)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ServiceStats indicates an expected call of ServiceStats.
+func (mr *MockURLStorageMockRecorder) ServiceStats(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceStats", reflect.TypeOf((*MockURLStorage)(nil).ServiceStats), ctx)
+}

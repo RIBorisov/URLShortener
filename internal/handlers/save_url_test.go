@@ -5,10 +5,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"shortener/internal/logger"
-	"shortener/internal/models"
 	"strings"
 	"testing"
+
+	"shortener/internal/logger"
+	"shortener/internal/models"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +28,7 @@ func TestSaveHandler(t *testing.T) {
 	log.Initialize("INFO")
 	s, err := storage.LoadStorage(ctx, cfg, log)
 	assert.NoError(t, err)
-	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
+	svc := &service.Service{Storage: s, BaseURL: cfg.App.BaseURL}
 	type want struct {
 		statusCode int
 	}
@@ -91,7 +92,7 @@ func BenchmarkSaveHandler(b *testing.B) {
 	log := &logger.Log{}
 	log.Initialize("INFO")
 	s, _ := storage.LoadStorage(ctx, cfg, log)
-	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
+	svc := &service.Service{Storage: s, BaseURL: cfg.App.BaseURL}
 
 	router := chi.NewRouter()
 	router.Post("/", SaveHandler(svc))

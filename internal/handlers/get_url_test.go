@@ -94,7 +94,7 @@ func TestGetHandler(t *testing.T) {
 			mockStore := mocks.NewMockURLStorage(ctrl)
 			mockStore.EXPECT().Get(ctx, gomock.Any()).Times(tt.callTimes).Return(tt.want.response, tt.want.respErr)
 
-			svc := &service.Service{Storage: mockStore, BaseURL: cfg.Service.BaseURL, Log: log}
+			svc := &service.Service{Storage: mockStore, BaseURL: cfg.App.BaseURL, Log: log}
 			handler := GetHandler(svc)
 			req, err := http.NewRequest(GET, tt.route, http.NoBody)
 			assert.NoError(t, err)

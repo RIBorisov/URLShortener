@@ -10,7 +10,7 @@ import (
 
 func TestParseFlags(t *testing.T) {
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError) //nolint:reassign // test
-	f = ServiceConfig{}
+	c = Config{}
 
 	os.Args = []string{ //nolint:reassign // test
 		"cmd",
@@ -23,10 +23,10 @@ func TestParseFlags(t *testing.T) {
 
 	parsed := parseFlags()
 
-	assert.Equal(t, "127.0.0.1:9090", parsed.ServerAddress)
-	assert.Equal(t, "http://127.0.0.1:9090", parsed.BaseURL)
-	assert.Equal(t, "/path/to/storage", parsed.FileStoragePath)
-	assert.Equal(t, "user:pass@tcp(localhost:3306)/dbname", parsed.DatabaseDSN)
+	assert.Equal(t, "127.0.0.1:9090", parsed.App.ServerAddress)
+	assert.Equal(t, "http://127.0.0.1:9090", parsed.App.BaseURL)
+	assert.Equal(t, "/path/to/storage", parsed.App.FileStoragePath)
+	assert.Equal(t, "user:pass@tcp(localhost:3306)/dbname", parsed.App.DatabaseDSN)
 
 	newConfig := parseFlags()
 

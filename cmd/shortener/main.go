@@ -3,16 +3,23 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
-	"time"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"golang.org/x/sync/errgroup"
 
 	"shortener/internal/config"
 	"shortener/internal/handlers"
 	"shortener/internal/logger"
 	"shortener/internal/service"
 	"shortener/internal/storage"
+	"shortener/internal/tasks"
 )
 
 var (
@@ -24,21 +31,30 @@ var (
 // main is the entry point for the URL shortener application.
 func main() {
 	log := &logger.Log{}
-	log.Initialize("INFO")
-	ctx := context.Background()
-	if err := initApp(ctx, log); err != nil {
-		log.Fatal("unexpected error occurred when initializing application", err)
+	log.Initialize("DEBUG")
+
+	if err := initApp(log); err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			log.Info("server closed")
+		} else {
+			log.Fatal("unexpected error occurred when initializing application", err)
+		}
 	}
 }
 
 // initApp initializes the URL shortener application.
 //
 // It loads the configuration, initializes the storage, and starts the HTTP server.
-func initApp(ctx context.Context, log *logger.Log) error {
+func initApp(log *logger.Log) error {
+	ctx, cancelCtx := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer cancelCtx()
+
+	g, ctx := errgroup.WithContext(ctx)
+
 	cfg := config.LoadConfig()
 	store, err := storage.LoadStorage(ctx, cfg, log)
 	if err != nil {
-		log.Err("failed to load storage: ", err)
+		return fmt.Errorf("failed to load storage: %w", err)
 	}
 	defer func() {
 		if err = store.Close(); err != nil {
@@ -48,55 +64,78 @@ func initApp(ctx context.Context, log *logger.Log) error {
 
 	svc := &service.Service{
 		Storage:         store,
-		BaseURL:         cfg.Service.BaseURL,
-		FileStoragePath: cfg.Service.FileStoragePath,
-		DatabaseDSN:     cfg.Service.DatabaseDSN,
+		BaseURL:         cfg.App.BaseURL,
+		FileStoragePath: cfg.App.FileStoragePath,
+		DatabaseDSN:     cfg.App.DatabaseDSN,
 		Log:             log,
 		SecretKey:       cfg.Service.SecretKey,
 	}
 
 	if cfg.Service.BackgroundCleanup {
 		interval := cfg.Service.BackgroundCleanupInterval
-		log.Info("starting storage cleanup task", "period", interval)
-		runBackgroundCleanupDB(ctx, store, log, interval)
+		g.Go(func() error {
+			tasks.Run(ctx, store, log, interval)
+			<-ctx.Done()
+			return nil
+		})
 	}
 
 	r := handlers.NewRouter(svc)
 
-	srv := &http.Server{
-		Addr:    cfg.Service.ServerAddress,
-		Handler: r,
-	}
-	log.Info(
-		"server starting...",
-		slog.String("host", cfg.Service.ServerAddress),
-		slog.String("base URL", cfg.Service.BaseURL),
+	log.Info("server starting...",
+		slog.String("base URL", cfg.App.BaseURL),
 		slog.String("Build version", buildVersion),
 		slog.String("Build date", buildDate),
 		slog.String("Build commit", buildCommit),
 	)
+	srv := &http.Server{
+		Addr:    cfg.App.ServerAddress,
+		Handler: r,
+	}
 
-	return srv.ListenAndServe()
-}
-
-// runBackgroundCleanupDB runs a background task to clean up the storage periodically.
-//
-// It uses a ticker to schedule the cleanup at the specified interval.
-func runBackgroundCleanupDB(ctx context.Context, store service.URLStorage, log *logger.Log, interval time.Duration) {
-	const op = "background cleanup task."
-
+	// enabling graceful shutdown
+	readyToShutdown := make(chan struct{})
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
-		ticker := time.NewTicker(interval)
-		for range ticker.C {
-			urls, err := store.Cleanup(ctx)
-			if err != nil {
-				log.Err("failed cleanup storage", err)
+		gracefulShutdown(ctx, log, sigint, srv)
+	}()
+
+	// run the server with (or w/o) TLS
+	g.Go(func() error {
+		if !cfg.App.EnableHTTPS {
+			log.Info("TLS disabled..")
+			if err = srv.ListenAndServe(); err != nil {
+				if !errors.Is(err, http.ErrServerClosed) {
+					return fmt.Errorf("failed listen and serve: %w", err)
+				}
 			}
-			if len(urls) > 0 {
-				log.Info(op+" The following url IDs were deleted from storage", "URLs", urls)
-			} else {
-				log.Info(op+" Nothing to delete. Going to sleep", "time", interval)
+		} else {
+			if err = srv.ListenAndServeTLS("tls/server.crt", "tls/server.key"); err != nil {
+				if !errors.Is(err, http.ErrServerClosed) {
+					return fmt.Errorf("failed listen and serve: %w", err)
+				}
 			}
 		}
-	}()
+		return nil
+	})
+
+	<-ctx.Done()
+	log.Info("received signal to stop application")
+
+	if err = g.Wait(); err != nil {
+		log.Err("failed to wait for all goroutines finished", err)
+	}
+	log.Info("closed all goroutines, now we may shutdown the server")
+	close(readyToShutdown)
+
+	return nil
+}
+
+func gracefulShutdown(ctx context.Context, log *logger.Log, sigint chan os.Signal, srv *http.Server) {
+	<-sigint
+	if shutdownErr := srv.Shutdown(ctx); shutdownErr != nil {
+		log.Err("failed to shutdown server", shutdownErr)
+	}
+	log.Debug("graceful shutdown complete..")
 }

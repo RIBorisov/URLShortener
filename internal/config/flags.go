@@ -4,16 +4,18 @@ import (
 	"flag"
 )
 
-var f ServiceConfig
+var c Config
 
-func parseFlags() *ServiceConfig {
+func parseFlags() *Config {
 	if !flag.Parsed() {
-		flag.StringVar(&f.ServerAddress, "a", "localhost:8080", "Address and port to run server, example: localhost:8080")
-		flag.StringVar(&f.BaseURL, "b", "http://localhost:8080", "Server address")
-		flag.StringVar(&f.FileStoragePath, "f", "", "File path to save data")
-		flag.StringVar(&f.DatabaseDSN, "d", "", "Database DSN")
-		flag.StringVar(&f.SecretKey, "s", "", "Secret key")
+		flag.StringVar(&c.App.ServerAddress, "a", ":8080", "Address where server runs")
+		flag.StringVar(&c.App.BaseURL, "b", "http://localhost:8080", "Server address")
+		flag.StringVar(&c.App.FileStoragePath, "f", "", "File path to save data")
+		flag.StringVar(&c.App.DatabaseDSN, "d", "", "Database DSN")
+		flag.StringVar(&c.Service.SecretKey, "secret", "", "Secret key")
+		flag.BoolVar(&c.App.EnableHTTPS, "s", false, "Enable HTTPS")
+		flag.StringVar(&c.App.ConfigFilePath, "c", "", "Config file path")
 		flag.Parse()
 	}
-	return &f
+	return &c
 }

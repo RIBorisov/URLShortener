@@ -22,7 +22,7 @@ func TestNewRouter(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockStore := mocks.NewMockURLStorage(ctrl)
-		svc := &service.Service{Storage: mockStore, BaseURL: cfg.Service.BaseURL, Log: log}
+		svc := &service.Service{Storage: mockStore, BaseURL: cfg.App.BaseURL, Log: log}
 
 		r := NewRouter(svc)
 		assert.NotEmpty(t, r)

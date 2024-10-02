@@ -23,7 +23,7 @@ func BenchmarkGetURLsHandler(b *testing.B) {
 	log := &logger.Log{}
 	log.Initialize("INFO")
 	s, _ := storage.LoadStorage(ctx, cfg, log)
-	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
+	svc := &service.Service{Storage: s, BaseURL: cfg.App.BaseURL}
 
 	router := chi.NewRouter()
 	router.Get("/api/user/urls", GetURLsHandler(svc))
@@ -47,7 +47,7 @@ func TestGetURLsHandler(t *testing.T) {
 	s, err := storage.LoadStorage(ctx, cfg, log)
 	assert.NoError(t, err)
 
-	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
+	svc := &service.Service{Storage: s, BaseURL: cfg.App.BaseURL}
 
 	tests := []struct {
 		name         string

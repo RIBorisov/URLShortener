@@ -29,7 +29,7 @@ func TestBatchHandler(t *testing.T) {
 	ctx := context.Background()
 	s, err := storage.LoadStorage(ctx, cfg, log)
 	assert.NoError(t, err)
-	svc := &service.Service{Storage: s, BaseURL: cfg.Service.BaseURL}
+	svc := &service.Service{Storage: s, BaseURL: cfg.App.BaseURL}
 
 	tests := []struct {
 		name       string

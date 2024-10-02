@@ -56,3 +56,8 @@ func (l *Log) Info(msg string, args ...any) {
 func (l *Log) Debug(msg string, args ...any) {
 	l.Logger.Debug(msg, args...)
 }
+
+// Warn event.
+func (l *Log) Warn(msg string, args ...any) {
+	l.Logger.Debug(msg, args...)
+}

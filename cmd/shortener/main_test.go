@@ -29,13 +29,14 @@ func Test_initApp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("SERVER_ADDRESS", ":8080")
+			t.Setenv("ENABLE_HTTPS", "0")
 			tt.args.log.Initialize("INFO")
 
 			shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), 500*time.Millisecond)
 			defer shutdownRelease()
 
 			go func() {
-				err := initApp(shutdownCtx, tt.args.log)
+				err := initApp(tt.args.log)
 				assert.NoError(t, err)
 			}()
 			<-shutdownCtx.Done()

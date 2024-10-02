@@ -69,6 +69,7 @@ func initApp(log *logger.Log) error {
 		DatabaseDSN:     cfg.App.DatabaseDSN,
 		Log:             log,
 		SecretKey:       cfg.Service.SecretKey,
+		TrustedSubnet:   cfg.App.TrustedSubnet,
 	}
 
 	if cfg.Service.BackgroundCleanup {

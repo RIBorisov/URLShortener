@@ -22,6 +22,7 @@ type URLStorage interface {
 	GetByUserID(ctx context.Context) ([]models.BaseRow, error)
 	DeleteURLs(ctx context.Context, input models.DeleteURLs) error
 	Cleanup(ctx context.Context) ([]string, error)
+	ServiceStats(ctx context.Context) (models.Stats, error)
 }
 
 // Service represents the main service structure for the URL shortener.
@@ -32,6 +33,7 @@ type Service struct {
 	BaseURL         string
 	DatabaseDSN     string
 	SecretKey       string
+	TrustedSubnet   string
 }
 
 // SaveURL saves a long URL and returns a shortened URL.
@@ -78,6 +80,16 @@ func (s *Service) DeleteURLs(ctx context.Context, input models.DeleteURLs) error
 	}
 
 	return nil
+}
+
+// GetStats gets statistics of saved urls and users.
+func (s *Service) GetStats(ctx context.Context) (models.Stats, error) {
+	res, err := s.Storage.ServiceStats(ctx)
+	if err != nil {
+		return models.Stats{}, fmt.Errorf("failed to get stats: %w", err)
+	}
+
+	return res, nil
 }
 
 func (s *Service) generateUniqueShortLink(ctx context.Context) string {

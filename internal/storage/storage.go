@@ -236,6 +236,22 @@ func (d *inDatabase) BatchSave(ctx context.Context, input models.BatchArray) (mo
 	return resp, nil
 }
 
+// ServiceStats returns a counter of saved urls and users.
+func (d *inDatabase) ServiceStats(ctx context.Context) (models.Stats, error) {
+	const selectStmt = `SELECT
+    (SELECT COUNT(DISTINCT user_id) FROM urls) AS users_cnt,
+    (SELECT COUNT(DISTINCT long) FROM urls) AS long_cnt`
+
+	resp := models.Stats{}
+
+	err := d.pool.QueryRow(ctx, selectStmt).Scan(&resp.Users, &resp.URLs)
+	if err != nil {
+		return models.Stats{}, fmt.Errorf("failed to get rows from table: %w", err)
+	}
+
+	return resp, nil
+}
+
 // Cleanup removes deleted URLs from the in-memory storage.
 func (m *inMemory) Cleanup(_ context.Context) ([]string, error) {
 	m.mux.Lock()
@@ -356,6 +372,23 @@ func (m *inMemory) BatchSave(ctx context.Context, input models.BatchArray) (mode
 	return result, nil
 }
 
+// ServiceStats returns a counter of saved urls and users.
+func (m *inMemory) ServiceStats(_ context.Context) (models.Stats, error) {
+	result := models.Stats{
+		URLs:  int(m.counter),
+		Users: getUniqUsers(m.urls),
+	}
+	return result, nil
+}
+
+func getUniqUsers(m map[string]URLRecord) int {
+	uniqUsers := make(map[string]struct{})
+	for _, urlRecord := range m {
+		uniqUsers[urlRecord.UserID] = struct{}{}
+	}
+	return len(uniqUsers)
+}
+
 // Cleanup removes deleted URLs from the file-based storage.
 func (f *inFile) Cleanup(_ context.Context) ([]string, error) {
 	urls := make([]URLRecord, 0)
@@ -464,6 +497,15 @@ func (f *inFile) restore() error {
 		f.counter = uint64(len(mapping))
 	}
 	return nil
+}
+
+// ServiceStats returns a counter of saved urls and users.
+func (f *inFile) ServiceStats(ctx context.Context) (models.Stats, error) {
+	res, err := f.inMemory.ServiceStats(ctx)
+	if err != nil {
+		return models.Stats{}, fmt.Errorf("failed to get stats: %w", err)
+	}
+	return res, nil
 }
 
 // LoadStorage loads the appropriate URL storage based on the configuration.

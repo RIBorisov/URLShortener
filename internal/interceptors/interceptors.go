@@ -2,7 +2,6 @@ package interceptors
 
 import (
 	"context"
-	"errors"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -18,7 +17,7 @@ func UserIdUnaryInterceptor(svc *service.Service) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
-			token, err := svc.BuildJWTString(svc.SecretKey)
+			token, err := svc.BuildJWTString()
 			if err != nil {
 				svc.Log.Err("Failed to generate token", err)
 				return nil, status.Error(codes.Unauthenticated, "Access denied")
@@ -27,7 +26,7 @@ func UserIdUnaryInterceptor(svc *service.Service) grpc.UnaryServerInterceptor {
 		}
 		token := md.Get("token")
 		if len(token) == 0 {
-			generatedToken, err := svc.BuildJWTString(svc.SecretKey)
+			generatedToken, err := svc.BuildJWTString()
 			if err != nil {
 				svc.Log.Err("Failed to generate token", err)
 				return nil, status.Error(codes.Unauthenticated, "Access denied")
@@ -45,5 +44,3 @@ func UserIdUnaryInterceptor(svc *service.Service) grpc.UnaryServerInterceptor {
 		return handler(newCtx, req)
 	}
 }
-
-var ErrTokenNotExists = errors.New("failed to get token from metadata")

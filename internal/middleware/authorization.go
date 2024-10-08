@@ -41,7 +41,7 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 		token, err := r.Cookie("token")
 		rCtx := r.Context()
 		if err != nil && errors.Is(err, http.ErrNoCookie) {
-			newToken, err := ba.Service.BuildJWTString(ba.Service.SecretKey)
+			newToken, err := ba.Service.BuildJWTString()
 			if err != nil {
 				ba.Service.Log.Err("failed build JWTString: ", err)
 				http.Error(w, "", http.StatusInternalServerError)

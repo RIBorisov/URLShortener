@@ -168,7 +168,7 @@ func (s *Service) IsSubnetTrusted(realIP string) bool {
 	return false
 }
 
-func (s *Service) BuildJWTString(secretKey string) (string, error) {
+func (s *Service) BuildJWTString() (string, error) {
 	const tokenExp = time.Hour * 720
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -176,7 +176,7 @@ func (s *Service) BuildJWTString(secretKey string) (string, error) {
 		},
 		UserID: uuid.NewString(),
 	})
-	tokenString, err := token.SignedString([]byte(secretKey))
+	tokenString, err := token.SignedString([]byte(s.SecretKey))
 	if err != nil {
 		return "", fmt.Errorf("failed to create token string: %w", err)
 	}

@@ -8,6 +8,10 @@ import (
 	"math/rand"
 	"net"
 	"net/url"
+	"time"
+
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 
 	"shortener/internal/logger"
 	"shortener/internal/models"
@@ -35,6 +39,12 @@ type Service struct {
 	DatabaseDSN     string
 	SecretKey       string
 	TrustedSubnet   string
+}
+
+// Claims represents the claims for a JWT token.
+type Claims struct {
+	jwt.RegisteredClaims
+	UserID string
 }
 
 // SaveURL saves a long URL and returns a shortened URL.
@@ -156,6 +166,41 @@ func (s *Service) IsSubnetTrusted(realIP string) bool {
 	}
 
 	return false
+}
+
+func (s *Service) BuildJWTString(secretKey string) (string, error) {
+	const tokenExp = time.Hour * 720
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenExp)),
+		},
+		UserID: uuid.NewString(),
+	})
+	tokenString, err := token.SignedString([]byte(secretKey))
+	if err != nil {
+		return "", fmt.Errorf("failed to create token string: %w", err)
+	}
+	return tokenString, nil
+}
+
+func (s *Service) GetUserID(tokenString, secretKey string, log *logger.Log) string {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method %v", t.Header["alg"])
+		}
+		return []byte(secretKey), nil
+	})
+	if err != nil {
+		log.Err("failed parse with claims tokenString: ", err)
+		return ""
+	}
+	if !token.Valid {
+		log.Err("Token is not valid: ", token)
+		return ""
+	}
+
+	return claims.UserID
 }
 
 func generateRandomString(length int) string {

@@ -2,25 +2,73 @@ package grpc_server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
+	"shortener/internal/interceptors"
 	"shortener/internal/logger"
 	"shortener/internal/service"
+	"shortener/internal/storage"
 	pb "shortener/pkg/service/proto"
 )
 
 type GRPCServer struct {
 	pb.UnimplementedURLShortenerServiceServer
-	svc  *service.Service
-	Addr string
+	svc *service.Service
+}
+
+// GRPCServe runs the gRPC server.
+func GRPCServe(svc *service.Service, log *logger.Log) error {
+	listen, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		return fmt.Errorf("failed to listen a port: %w", err)
+	}
+	s := grpc.NewServer(grpc.UnaryInterceptor(interceptors.UserIdUnaryInterceptor(svc)))
+	pb.RegisterURLShortenerServiceServer(s, &GRPCServer{svc: svc})
+	reflection.Register(s)
+	log.Debug("Starting gRPC server..")
+
+	return s.Serve(listen)
+}
+
+// Save method saves long url and replies short one.
+func (g *GRPCServer) Save(ctx context.Context, long *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
+	if long == nil {
+		return nil, status.Error(codes.InvalidArgument, "Invalid URL passed")
+	}
+
+	short, err := g.svc.SaveURL(ctx, long.String())
+	if err != nil {
+		var duplicateError *storage.DuplicateRecordError
+		if errors.As(err, &duplicateError) {
+			return nil, status.Error(codes.AlreadyExists, duplicateError.Message)
+		}
+		g.svc.Log.Err("failed to save URL", err)
+		return nil, status.Error(codes.Internal, "failed to save URL")
+	}
+	resultURL := strings.Join([]string{g.svc.BaseURL, "/", short}, "")
+
+	//return &pb.SaveResponse{Short: strings.Join([]string{g.svc.BaseURL, "/", short}, "")}, nil
+	return &wrapperspb.StringValue{Value: resultURL}, nil
+}
+
+func (g *GRPCServer) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingResponse, error) {
+	if err := g.svc.Storage.Ping(ctx); err != nil {
+		g.svc.Log.Err("failed to ping database", err)
+		return nil, status.Error(codes.Unavailable, "")
+	}
+
+	return &pb.PingResponse{}, nil
 }
 
 // Stats method shows internal info about saved users and urls.
@@ -42,18 +90,4 @@ func (g *GRPCServer) Stats(ctx context.Context, _ *pb.StatsRequest) (*pb.StatsRe
 	}
 
 	return &pb.StatsResponse{Urls: strconv.Itoa(stats.URLs), Users: strconv.Itoa(stats.Users)}, nil
-}
-
-// GRPCServe runs the gRPC server.
-func GRPCServe(svc *service.Service, log *logger.Log) error {
-	listen, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		return fmt.Errorf("failed to listen a port: %w", err)
-	}
-	s := grpc.NewServer()
-	pb.RegisterURLShortenerServiceServer(s, &GRPCServer{svc: svc})
-	reflection.Register(s)
-	log.Debug("Starting gRPC server..")
-
-	return s.Serve(listen)
 }

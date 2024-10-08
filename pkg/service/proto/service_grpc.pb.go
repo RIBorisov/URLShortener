@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -19,6 +20,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	URLShortenerService_Save_FullMethodName  = "/URLShortenerService/Save"
+	URLShortenerService_Ping_FullMethodName  = "/URLShortenerService/Ping"
 	URLShortenerService_Stats_FullMethodName = "/URLShortenerService/Stats"
 )
 
@@ -26,6 +29,11 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type URLShortenerServiceClient interface {
+	Save(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*wrapperspb.StringValue, error)
+	// rpc DeleteMany(StatsRequest) returns (StatsResponse); //delete_urls.proto
+	// rpc Get(StatsRequest) returns (StatsResponse); // get_url.proto
+	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
+	// rpc Shorten(StatsRequest) returns (StatsResponse);
 	Stats(ctx context.Context, in *StatsRequest, opts ...grpc.CallOption) (*StatsResponse, error)
 }
 
@@ -35,6 +43,26 @@ type uRLShortenerServiceClient struct {
 
 func NewURLShortenerServiceClient(cc grpc.ClientConnInterface) URLShortenerServiceClient {
 	return &uRLShortenerServiceClient{cc}
+}
+
+func (c *uRLShortenerServiceClient) Save(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*wrapperspb.StringValue, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(wrapperspb.StringValue)
+	err := c.cc.Invoke(ctx, URLShortenerService_Save_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *uRLShortenerServiceClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PingResponse)
+	err := c.cc.Invoke(ctx, URLShortenerService_Ping_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *uRLShortenerServiceClient) Stats(ctx context.Context, in *StatsRequest, opts ...grpc.CallOption) (*StatsResponse, error) {
@@ -51,6 +79,11 @@ func (c *uRLShortenerServiceClient) Stats(ctx context.Context, in *StatsRequest,
 // All implementations must embed UnimplementedURLShortenerServiceServer
 // for forward compatibility.
 type URLShortenerServiceServer interface {
+	Save(context.Context, *wrapperspb.StringValue) (*wrapperspb.StringValue, error)
+	// rpc DeleteMany(StatsRequest) returns (StatsResponse); //delete_urls.proto
+	// rpc Get(StatsRequest) returns (StatsResponse); // get_url.proto
+	Ping(context.Context, *PingRequest) (*PingResponse, error)
+	// rpc Shorten(StatsRequest) returns (StatsResponse);
 	Stats(context.Context, *StatsRequest) (*StatsResponse, error)
 	mustEmbedUnimplementedURLShortenerServiceServer()
 }
@@ -62,6 +95,12 @@ type URLShortenerServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedURLShortenerServiceServer struct{}
 
+func (UnimplementedURLShortenerServiceServer) Save(context.Context, *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Save not implemented")
+}
+func (UnimplementedURLShortenerServiceServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
+}
 func (UnimplementedURLShortenerServiceServer) Stats(context.Context, *StatsRequest) (*StatsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Stats not implemented")
 }
@@ -84,6 +123,42 @@ func RegisterURLShortenerServiceServer(s grpc.ServiceRegistrar, srv URLShortener
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&URLShortenerService_ServiceDesc, srv)
+}
+
+func _URLShortenerService_Save_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(wrapperspb.StringValue)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(URLShortenerServiceServer).Save(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: URLShortenerService_Save_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(URLShortenerServiceServer).Save(ctx, req.(*wrapperspb.StringValue))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _URLShortenerService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(URLShortenerServiceServer).Ping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: URLShortenerService_Ping_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(URLShortenerServiceServer).Ping(ctx, req.(*PingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _URLShortenerService_Stats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -111,6 +186,14 @@ var URLShortenerService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "URLShortenerService",
 	HandlerType: (*URLShortenerServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Save",
+			Handler:    _URLShortenerService_Save_Handler,
+		},
+		{
+			MethodName: "Ping",
+			Handler:    _URLShortenerService_Ping_Handler,
+		},
 		{
 			MethodName: "Stats",
 			Handler:    _URLShortenerService_Stats_Handler,

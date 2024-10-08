@@ -3,7 +3,15 @@ syntax = "proto3";
 option go_package = "shortener/pkg/service/proto";
 
 import "proto/stats.proto";
+import "proto/ping.proto";
+import "google/protobuf/wrappers.proto";
 
 service URLShortenerService {
+  rpc Save(google.protobuf.StringValue) returns (google.protobuf.StringValue);
+//  rpc DeleteMany(StatsRequest) returns (StatsResponse); //delete_urls.proto
+//  rpc Get(StatsRequest) returns (StatsResponse); // get_url.proto
+  rpc Ping(PingRequest) returns (PingResponse);
+//  rpc Shorten(StatsRequest) returns (StatsResponse);
   rpc Stats(StatsRequest) returns (StatsResponse);
+//  rpc SavedByUser(StatsRequest) returns (StatsResponse); //user_urls
 }

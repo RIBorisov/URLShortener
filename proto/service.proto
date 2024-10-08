@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+option go_package = "shortener/pkg/service/proto";
+
+import "proto/stats.proto";
+
+service URLShortenerService {
+  rpc Stats(StatsRequest) returns (StatsResponse);
+}

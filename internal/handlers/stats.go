@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"net"
 	"net/http"
 
 	"shortener/internal/service"
@@ -14,7 +13,7 @@ func StatsHandler(svc *service.Service) http.HandlerFunc {
 		ctx := r.Context()
 
 		realIP := r.Header.Get("X-Real-IP")
-		if !isSubnetTrusted(svc.TrustedSubnet, realIP) {
+		if svc.IsSubnetTrusted(realIP) {
 			http.Error(w, "Untrusted subnet", http.StatusForbidden)
 			return
 		}
@@ -33,28 +32,4 @@ func StatsHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 	}
-}
-
-func isSubnetTrusted(cidr, realIP string) bool {
-	ipNet, err := parseCIDR(cidr)
-	if err != nil {
-		return false
-	}
-
-	if realIP != "" {
-		clientIP := net.ParseIP(realIP)
-		if clientIP != nil && ipNet.Contains(clientIP) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func parseCIDR(cidr string) (*net.IPNet, error) {
-	_, ipNet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		return nil, err
-	}
-	return ipNet, nil
 }

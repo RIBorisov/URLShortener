@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/url"
 
 	"shortener/internal/logger"
@@ -140,6 +141,23 @@ func (s *Service) GetUserURLs(ctx context.Context) (models.UserURLs, error) {
 	return userURLs, nil
 }
 
+// IsSubnetTrusted method checks if the IP allowed.
+func (s *Service) IsSubnetTrusted(realIP string) bool {
+	ipNet, err := parseCIDR(s.TrustedSubnet)
+	if err != nil {
+		return false
+	}
+
+	if realIP != "" {
+		clientIP := net.ParseIP(realIP)
+		if clientIP != nil && ipNet.Contains(clientIP) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func generateRandomString(length int) string {
 	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	randomString := make([]byte, length)
@@ -148,6 +166,14 @@ func generateRandomString(length int) string {
 		randomString[i] = charset[rand.Intn(len(charset))]
 	}
 	return string(randomString)
+}
+
+func parseCIDR(cidr string) (*net.IPNet, error) {
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil, err
+	}
+	return ipNet, nil
 }
 
 // ErrURLNotFound error indicates item was not found.

@@ -17,6 +17,7 @@ import (
 
 	"shortener/internal/interceptors"
 	"shortener/internal/logger"
+	"shortener/internal/models"
 	"shortener/internal/service"
 	"shortener/internal/storage"
 	pb "shortener/pkg/service/proto"
@@ -58,10 +59,10 @@ func (g *GRPCServer) Save(ctx context.Context, long *wrapperspb.StringValue) (*w
 	}
 	resultURL := strings.Join([]string{g.svc.BaseURL, "/", short}, "")
 
-	//return &pb.SaveResponse{Short: strings.Join([]string{g.svc.BaseURL, "/", short}, "")}, nil
 	return &wrapperspb.StringValue{Value: resultURL}, nil
 }
 
+// Ping checks if connection to database can be established.
 func (g *GRPCServer) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingResponse, error) {
 	if err := g.svc.Storage.Ping(ctx); err != nil {
 		g.svc.Log.Err("failed to ping database", err)
@@ -69,6 +70,95 @@ func (g *GRPCServer) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingRespo
 	}
 
 	return &pb.PingResponse{}, nil
+}
+
+// SavedByUser method gets saved urls by the user from the ctx.
+func (g *GRPCServer) SavedByUser(ctx context.Context, _ *pb.SavedByUserRequest) (*pb.SavedByUserResponse, error) {
+	urls, err := g.svc.GetUserURLs(ctx)
+	if err != nil {
+		g.svc.Log.Err("failed to get user urls", err)
+		return nil, status.Error(codes.Internal, "")
+	}
+	result := &pb.SavedByUserResponse{}
+	for _, url := range urls {
+		tmp := &pb.URL{OriginalUrl: url.OriginalURL, ShortUrl: url.ShortURL}
+		result.Urls = append(result.Urls, tmp)
+	}
+	return result, nil
+}
+
+// Get long URL by short value.
+func (g *GRPCServer) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetResponse, error) {
+	long, err := g.svc.GetURL(ctx, in.Short)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrURLDeleted):
+			g.svc.Log.Info("requested deleted url", "short", in.Short)
+			return nil, status.Error(codes.Unavailable, "Requested deleted URL")
+		case errors.Is(err, service.ErrURLNotFound):
+			return nil, status.Error(codes.NotFound, "Requested URL not found")
+		default:
+			g.svc.Log.Err("failed to get URL", err)
+			return nil, status.Error(codes.Internal, "")
+		}
+	}
+
+	return &pb.GetResponse{Long: g.svc.BaseURL + "/" + long}, nil
+}
+
+// Batch saves many urls for the one call.
+func (g *GRPCServer) Batch(ctx context.Context, in *pb.BatchRequest) (*pb.BatchResponse, error) {
+	var (
+		req []models.BatchRequest
+	)
+
+	for _, u := range in.Urls {
+		req = append(req, models.BatchRequest{OriginalURL: u.OriginalUrl, CorrelationID: u.CorrelationId})
+	}
+	saved, err := g.svc.SaveURLs(ctx, req)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "")
+	}
+	res := &pb.BatchResponse{}
+	for _, u := range saved {
+		res.Urls = append(
+			res.Urls,
+			&pb.BatchResponseEntity{
+				CorrelationId: u.CorrelationID,
+				ShortUrl:      u.ShortURL,
+			})
+	}
+
+	return &pb.BatchResponse{Urls: res.Urls}, nil
+}
+
+// DeleteMany deletes many urls for the one call.
+func (g *GRPCServer) DeleteMany(ctx context.Context, in *pb.DeleteRequest) (*pb.DeleteResponse, error) {
+	if err := g.svc.DeleteURLs(ctx, in.Urls); err != nil {
+		g.svc.Log.Err("failed to delete URLs", err)
+		return nil, status.Error(codes.Internal, "")
+	}
+
+	return &pb.DeleteResponse{Urls: in.Urls}, nil
+}
+
+// Shorten method saves long and returns short url.
+func (g *GRPCServer) Shorten(ctx context.Context, in *pb.ShortenRequest) (*pb.ShortenResponse, error) {
+	long := in.Url
+	short, err := g.svc.SaveURL(ctx, long)
+	if err != nil {
+		var duplicateErr *storage.DuplicateRecordError
+		if errors.As(err, &duplicateErr) {
+			g.svc.Log.Warn("failed to save url", err)
+			duplicate := g.svc.BaseURL + "/" + duplicateErr.Message
+			return nil, status.Error(codes.AlreadyExists, duplicate)
+		} else {
+			g.svc.Log.Err("failed to save url", err)
+			return nil, status.Error(codes.Internal, "")
+		}
+	}
+
+	return &pb.ShortenResponse{Result: g.svc.BaseURL + "/" + short}, nil
 }
 
 // Stats method shows internal info about saved users and urls.

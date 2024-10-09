@@ -578,7 +578,8 @@ func (e *DuplicateRecordError) Unwrap() error {
 	return e.Err
 }
 
-// Ping ...
+// Ping acquires a connection from the Pool and executes an empty sql statement against it.
+// If the sql returns without error, the database Ping is considered successful, otherwise, the error is returned.
 func (d *inDatabase) Ping(ctx context.Context) error {
 	return d.pool.Ping(ctx)
 }

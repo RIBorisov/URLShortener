@@ -38,8 +38,8 @@ type AppConfig struct {
 	FileStoragePath  string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/short-url-db.json"`
 	DatabaseDSN      string `env:"DATABASE_DSN"`
 	ConfigFilePath   string `env:"CONFIG" envDefault:""`
-	EnableHTTPS      bool   `env:"ENABLE_HTTPS" envDefault:"0"`
 	TrustedSubnet    string `env:"TRUSTED_SUBNET"`
+	EnableHTTPS      bool   `env:"ENABLE_HTTPS" envDefault:"0"`
 }
 
 // Config contains main config structures.

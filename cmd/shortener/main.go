@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"shortener/internal/config"
-	"shortener/internal/grpc_server"
+	"shortener/internal/grpcserver"
 	"shortener/internal/handlers"
 	"shortener/internal/logger"
 	"shortener/internal/service"
@@ -104,7 +104,7 @@ func initApp(log *logger.Log) error {
 	}()
 
 	g.Go(func() error {
-		err = grpc_server.GRPCServe(svc, log)
+		err = grpcserver.GRPCServe(svc, log)
 		if err != nil {
 			return err
 		}

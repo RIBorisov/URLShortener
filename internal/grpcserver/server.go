@@ -1,4 +1,4 @@
-package grpc_server
+package grpcserver
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -34,7 +33,7 @@ func GRPCServe(svc *service.Service, log *logger.Log) error {
 	if err != nil {
 		return fmt.Errorf("failed to listen a port: %w", err)
 	}
-	s := grpc.NewServer(grpc.UnaryInterceptor(interceptors.UserIdUnaryInterceptor(svc)))
+	s := grpc.NewServer(grpc.UnaryInterceptor(interceptors.UserIDUnaryInterceptor(svc)))
 	pb.RegisterURLShortenerServiceServer(s, &GRPCServer{svc: svc})
 	reflection.Register(s)
 	log.Debug("Starting gRPC server..")
@@ -57,9 +56,8 @@ func (g *GRPCServer) Save(ctx context.Context, long *wrapperspb.StringValue) (*w
 		g.svc.Log.Err("failed to save URL", err)
 		return nil, status.Error(codes.Internal, "failed to save URL")
 	}
-	resultURL := strings.Join([]string{g.svc.BaseURL, "/", short}, "")
 
-	return &wrapperspb.StringValue{Value: resultURL}, nil
+	return &wrapperspb.StringValue{Value: g.svc.BaseURL + "/" + short}, nil
 }
 
 // Ping checks if connection to database can be established.
@@ -89,11 +87,11 @@ func (g *GRPCServer) SavedByUser(ctx context.Context, _ *pb.SavedByUserRequest) 
 
 // Get long URL by short value.
 func (g *GRPCServer) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetResponse, error) {
-	long, err := g.svc.GetURL(ctx, in.Short)
+	long, err := g.svc.GetURL(ctx, in.GetShort())
 	if err != nil {
 		switch {
 		case errors.Is(err, storage.ErrURLDeleted):
-			g.svc.Log.Info("requested deleted url", "short", in.Short)
+			g.svc.Log.Info("requested deleted url", "short", in.GetShort())
 			return nil, status.Error(codes.Unavailable, "Requested deleted URL")
 		case errors.Is(err, service.ErrURLNotFound):
 			return nil, status.Error(codes.NotFound, "Requested URL not found")
@@ -108,12 +106,11 @@ func (g *GRPCServer) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetRespons
 
 // Batch saves many urls for the one call.
 func (g *GRPCServer) Batch(ctx context.Context, in *pb.BatchRequest) (*pb.BatchResponse, error) {
-	var (
-		req []models.BatchRequest
-	)
-
-	for _, u := range in.Urls {
-		req = append(req, models.BatchRequest{OriginalURL: u.OriginalUrl, CorrelationID: u.CorrelationId})
+	req := make([]models.BatchRequest, 0)
+	for _, u := range in.GetUrls() {
+		req = append(req, models.BatchRequest{
+			OriginalURL: u.GetOriginalUrl(), CorrelationID: u.GetCorrelationId()},
+		)
 	}
 	saved, err := g.svc.SaveURLs(ctx, req)
 	if err != nil {
@@ -129,23 +126,22 @@ func (g *GRPCServer) Batch(ctx context.Context, in *pb.BatchRequest) (*pb.BatchR
 			})
 	}
 
-	return &pb.BatchResponse{Urls: res.Urls}, nil
+	return &pb.BatchResponse{Urls: res.GetUrls()}, nil
 }
 
 // DeleteMany deletes many urls for the one call.
 func (g *GRPCServer) DeleteMany(ctx context.Context, in *pb.DeleteRequest) (*pb.DeleteResponse, error) {
-	if err := g.svc.DeleteURLs(ctx, in.Urls); err != nil {
+	if err := g.svc.DeleteURLs(ctx, in.GetUrls()); err != nil {
 		g.svc.Log.Err("failed to delete URLs", err)
 		return nil, status.Error(codes.Internal, "")
 	}
 
-	return &pb.DeleteResponse{Urls: in.Urls}, nil
+	return &pb.DeleteResponse{Urls: in.GetUrls()}, nil
 }
 
 // Shorten method saves long and returns short url.
 func (g *GRPCServer) Shorten(ctx context.Context, in *pb.ShortenRequest) (*pb.ShortenResponse, error) {
-	long := in.Url
-	short, err := g.svc.SaveURL(ctx, long)
+	short, err := g.svc.SaveURL(ctx, in.GetUrl())
 	if err != nil {
 		var duplicateErr *storage.DuplicateRecordError
 		if errors.As(err, &duplicateErr) {
@@ -168,9 +164,12 @@ func (g *GRPCServer) Stats(ctx context.Context, _ *pb.StatsRequest) (*pb.StatsRe
 	if !ok {
 		return nil, status.Error(codes.PermissionDenied, permissionDeniedMsg)
 	}
-	realIP := p.Addr.(*net.TCPAddr).IP.String()
+	tcpAddr, ok := p.Addr.(*net.TCPAddr)
+	if !ok {
+		return nil, status.Error(codes.PermissionDenied, permissionDeniedMsg)
+	}
 
-	if !g.svc.IsSubnetTrusted(realIP) {
+	if !g.svc.IsSubnetTrusted(tcpAddr.IP.String()) {
 		return nil, status.Error(codes.PermissionDenied, permissionDeniedMsg)
 	}
 

@@ -12,9 +12,14 @@ import (
 	"shortener/internal/service"
 )
 
-// UserIdUnaryInterceptor generates and adds JWT token from metadata to context.
-func UserIdUnaryInterceptor(svc *service.Service) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+// UserIDUnaryInterceptor generates and adds JWT token from metadata to context.
+func UserIDUnaryInterceptor(svc *service.Service) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		_ *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			token, err := svc.BuildJWTString()

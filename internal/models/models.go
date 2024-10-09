@@ -59,6 +59,12 @@ type BaseRow struct {
 // DeleteURLs model.
 type DeleteURLs []string
 
+// Stats model.
+type Stats struct {
+	URLs  int `json:"urls"`
+	Users int `json:"users"`
+}
+
 type key int
 
 // CtxUserIDKey context userID key.

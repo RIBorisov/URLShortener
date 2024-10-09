@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"shortener/internal/logger"
+	"shortener/internal/service"
 )
 
 func BenchmarkGetUserID(b *testing.B) {
@@ -19,10 +20,11 @@ yTmWk0mALkC1Lb2j9Qcz70GqY-RA-BOUWX_0e_TbA0U"`
 	secretKey := "!@#$%^YdBg0DS"
 	log := &logger.Log{}
 	log.Initialize("INFO")
+	svc := &service.Service{}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		getUserID(tokenString, secretKey, log)
+		svc.GetUserID(tokenString, secretKey, log)
 	}
 }
 
@@ -86,7 +88,8 @@ func TestBaseCheck_Middleware(t *testing.T) {
 
 func TestBuildJWTString(t *testing.T) {
 	secretKey := "secret-key-1234567890"
-	tokenString, err := buildJWTString(secretKey)
+	svc := &service.Service{SecretKey: secretKey}
+	tokenString, err := svc.BuildJWTString()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tokenString)
 
@@ -105,39 +108,43 @@ func TestBuildJWTString(t *testing.T) {
 
 func TestGetUserID(t *testing.T) {
 	secretKey := "secret-key-1234567890"
-	tokenString, err := buildJWTString(secretKey)
+	svc := &service.Service{SecretKey: secretKey}
+	tokenString, err := svc.BuildJWTString()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tokenString)
 
 	log := &logger.Log{}
 	log.Initialize("INFO")
 
-	userID := getUserID(tokenString, secretKey, log)
+	userID := svc.GetUserID(tokenString, secretKey, log)
 	assert.NotEmpty(t, userID)
 
-	// // checks user_id is empty with invalid token
+	// checks user_id is empty with invalid token
 	badTokenString := "invalid-token"
-	userID = getUserID(badTokenString, secretKey, log)
+	userID = svc.GetUserID(badTokenString, secretKey, log)
 	assert.Empty(t, userID)
 
 	// checks user_id is empty with wrong key
 	wrongSecretKey := "wrong-secret-key"
-	userID = getUserID(tokenString, wrongSecretKey, log)
+	userID = svc.GetUserID(tokenString, wrongSecretKey, log)
 	assert.Empty(t, userID)
 }
 
 func TestGetUserID_InvalidToken(t *testing.T) {
 	log := &logger.Log{}
 	log.Initialize("INFO")
+	secretKey := "another-secret-key"
+	svc := &service.Service{SecretKey: secretKey}
 
 	// invalid token
 	tokenString := "invalid-token"
-	userID := getUserID(tokenString, "secret-key", log)
+	userID := svc.GetUserID(tokenString, "secret-key", log)
 	assert.Empty(t, userID)
 
 	// another signed key
-	tokenString, err := buildJWTString("another-secret-key")
+	svc.SecretKey = "another-secret-key"
+	tokenString, err := svc.BuildJWTString()
 	assert.NoError(t, err)
-	userID = getUserID(tokenString, "secret-key", log)
+	userID = svc.GetUserID(tokenString, "secret-key", log)
 	assert.Empty(t, userID)
 }

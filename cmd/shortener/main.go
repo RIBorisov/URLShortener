@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"shortener/internal/config"
+	"shortener/internal/grpcserver"
 	"shortener/internal/handlers"
 	"shortener/internal/logger"
 	"shortener/internal/service"
@@ -69,6 +70,7 @@ func initApp(log *logger.Log) error {
 		DatabaseDSN:     cfg.App.DatabaseDSN,
 		Log:             log,
 		SecretKey:       cfg.Service.SecretKey,
+		TrustedSubnet:   cfg.App.TrustedSubnet,
 	}
 
 	if cfg.Service.BackgroundCleanup {
@@ -100,6 +102,14 @@ func initApp(log *logger.Log) error {
 	go func() {
 		gracefulShutdown(ctx, log, sigint, srv)
 	}()
+
+	g.Go(func() error {
+		err = grpcserver.GRPCServe(svc, log)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 
 	// run the server with (or w/o) TLS
 	g.Go(func() error {

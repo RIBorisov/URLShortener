@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option go_package = "shortener/pkg/service/proto";
+
+message DeleteRequest {
+  repeated string urls = 1;
+}
+
+message DeleteResponse {
+  repeated string urls = 1;
+}

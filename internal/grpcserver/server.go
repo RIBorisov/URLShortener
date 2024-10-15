@@ -175,6 +175,7 @@ func (g *GRPCServer) Stats(ctx context.Context, _ *pb.StatsRequest) (*pb.StatsRe
 
 	stats, err := g.svc.GetStats(ctx)
 	if err != nil {
+		g.svc.Log.Err("failed to get stats", err)
 		return nil, status.Error(codes.Internal, "Internal server error")
 	}
 

@@ -97,3 +97,17 @@ build-app:
 	cd $(DIR) && \
 	go build -ldflags "-X main.buildVersion=$(version) -X main.buildDate=$(DATE) -X main.buildCommit=$(COMMIT_HASH)" -o $(APP_NAME)
 	cd $(DIR) && ./$(APP_NAME)
+
+# Находясь в корне репозитория
+.PHONY: gen-pb
+gen-pb:
+	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=./pkg/shortener_service \
+	--go-grpc_opt=paths=source_relative ./proto/*.proto
+
+.PHONY: pb
+pb:
+	protoc --go_out=pkg/service \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=pkg/service \
+		--go-grpc_opt=paths=source_relative \
+		./proto/*.proto

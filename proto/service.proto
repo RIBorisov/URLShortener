@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option go_package = "shortener/pkg/service/proto";
+
+import "proto/stats.proto";
+import "proto/ping.proto";
+import "proto/shorten.proto";
+import "proto/user_urls.proto";
+import "proto/get_url.proto";
+import "proto/batch.proto";
+import "proto/delete_urls.proto";
+import "google/protobuf/wrappers.proto";
+
+service URLShortenerService {
+  rpc Save(google.protobuf.StringValue) returns (google.protobuf.StringValue);
+  rpc Batch(BatchRequest) returns (BatchResponse);
+  rpc DeleteMany(DeleteRequest) returns (DeleteResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Ping(PingRequest) returns (PingResponse);
+  rpc Shorten(ShortenRequest) returns (ShortenResponse);
+  rpc Stats(StatsRequest) returns (StatsResponse);
+  rpc SavedByUser(SavedByUserRequest) returns (SavedByUserResponse);
+}

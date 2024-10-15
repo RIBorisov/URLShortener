@@ -4,12 +4,10 @@ package middleware
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/google/uuid"
 
 	"shortener/internal/logger"
 	"shortener/internal/models"
@@ -43,7 +41,7 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 		token, err := r.Cookie("token")
 		rCtx := r.Context()
 		if err != nil && errors.Is(err, http.ErrNoCookie) {
-			newToken, err := buildJWTString(ba.Service.SecretKey)
+			newToken, err := ba.Service.BuildJWTString()
 			if err != nil {
 				ba.Service.Log.Err("failed build JWTString: ", err)
 				http.Error(w, "", http.StatusInternalServerError)
@@ -58,7 +56,7 @@ func (ba *BaseAuth) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		userID := getUserID(token.Value, ba.Service.SecretKey, ba.Service.Log)
+		userID := ba.Service.GetUserID(token.Value, ba.Service.SecretKey, ba.Service.Log)
 		if userID == "" {
 			ba.Service.Log.Err(unauthorized, "no userID")
 			http.Error(w, unauthorized, http.StatusUnauthorized)
@@ -102,38 +100,4 @@ func (bc *BaseCheck) Middleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func buildJWTString(secretKey string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenExp)),
-		},
-		UserID: uuid.NewString(),
-	})
-	tokenString, err := token.SignedString([]byte(secretKey))
-	if err != nil {
-		return "", fmt.Errorf("failed to create token string: %w", err)
-	}
-	return tokenString, nil
-}
-
-func getUserID(tokenString, secretKey string, log *logger.Log) string {
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method %v", t.Header["alg"])
-		}
-		return []byte(secretKey), nil
-	})
-	if err != nil {
-		log.Err("failed parse with claims tokenString: ", err)
-		return ""
-	}
-	if !token.Valid {
-		log.Err("Token is not valid: ", token)
-		return ""
-	}
-
-	return claims.UserID
 }

@@ -15,6 +15,7 @@ func parseFlags() *Config {
 		flag.StringVar(&c.Service.SecretKey, "secret", "", "Secret key")
 		flag.BoolVar(&c.App.EnableHTTPS, "s", false, "Enable HTTPS")
 		flag.StringVar(&c.App.ConfigFilePath, "c", "", "Config file path")
+		flag.StringVar(&c.App.TrustedSubnet, "t", "", "Trusted subnet")
 		flag.Parse()
 	}
 	return &c

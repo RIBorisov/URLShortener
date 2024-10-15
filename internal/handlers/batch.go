@@ -50,7 +50,7 @@ func BatchHandler(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json") //nolint:goconst //not sure const better
 		w.WriteHeader(http.StatusCreated)
 		enc := json.NewEncoder(w)
 		err = enc.Encode(saved)

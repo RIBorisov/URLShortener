@@ -32,6 +32,7 @@ func NewRouter(svc *service.Service) *chi.Mux {
 		})
 	})
 	router.Delete("/api/user/urls", DeleteURLsHandler(svc))
+	router.Get("/api/internal/stats", StatsHandler(svc))
 	router.Get("/ping", PingHandler(svc))
 	router.Mount("/debug", middleware.Profiler())
 

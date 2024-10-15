@@ -6,7 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/url"
+	"time"
+
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 
 	"shortener/internal/logger"
 	"shortener/internal/models"
@@ -22,6 +27,7 @@ type URLStorage interface {
 	GetByUserID(ctx context.Context) ([]models.BaseRow, error)
 	DeleteURLs(ctx context.Context, input models.DeleteURLs) error
 	Cleanup(ctx context.Context) ([]string, error)
+	ServiceStats(ctx context.Context) (models.Stats, error)
 }
 
 // Service represents the main service structure for the URL shortener.
@@ -32,6 +38,13 @@ type Service struct {
 	BaseURL         string
 	DatabaseDSN     string
 	SecretKey       string
+	TrustedSubnet   string
+}
+
+// Claims represents the claims for a JWT token.
+type Claims struct {
+	jwt.RegisteredClaims
+	UserID string
 }
 
 // SaveURL saves a long URL and returns a shortened URL.
@@ -78,6 +91,16 @@ func (s *Service) DeleteURLs(ctx context.Context, input models.DeleteURLs) error
 	}
 
 	return nil
+}
+
+// GetStats gets statistics of saved urls and users.
+func (s *Service) GetStats(ctx context.Context) (models.Stats, error) {
+	res, err := s.Storage.ServiceStats(ctx)
+	if err != nil {
+		return models.Stats{}, fmt.Errorf("failed to get stats: %w", err)
+	}
+
+	return res, nil
 }
 
 func (s *Service) generateUniqueShortLink(ctx context.Context) string {
@@ -128,6 +151,58 @@ func (s *Service) GetUserURLs(ctx context.Context) (models.UserURLs, error) {
 	return userURLs, nil
 }
 
+// IsSubnetTrusted method checks if the IP allowed.
+func (s *Service) IsSubnetTrusted(realIP string) bool {
+	ipNet, err := parseCIDR(s.TrustedSubnet)
+	if err != nil {
+		return false
+	}
+
+	if realIP != "" {
+		clientIP := net.ParseIP(realIP)
+		if clientIP != nil && ipNet.Contains(clientIP) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *Service) BuildJWTString() (string, error) {
+	const tokenExp = time.Hour * 720
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenExp)),
+		},
+		UserID: uuid.NewString(),
+	})
+	tokenString, err := token.SignedString([]byte(s.SecretKey))
+	if err != nil {
+		return "", fmt.Errorf("failed to create token string: %w", err)
+	}
+	return tokenString, nil
+}
+
+func (s *Service) GetUserID(tokenString, secretKey string, log *logger.Log) string {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method %v", t.Header["alg"])
+		}
+		return []byte(secretKey), nil
+	})
+	if err != nil {
+		log.Err("failed parse with claims tokenString: ", err)
+		return ""
+	}
+	if !token.Valid {
+		log.Err("Token is not valid: ", token)
+		return ""
+	}
+
+	return claims.UserID
+}
+
 func generateRandomString(length int) string {
 	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	randomString := make([]byte, length)
@@ -136,6 +211,14 @@ func generateRandomString(length int) string {
 		randomString[i] = charset[rand.Intn(len(charset))]
 	}
 	return string(randomString)
+}
+
+func parseCIDR(cidr string) (*net.IPNet, error) {
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil, err
+	}
+	return ipNet, nil
 }
 
 // ErrURLNotFound error indicates item was not found.

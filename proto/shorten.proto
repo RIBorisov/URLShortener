@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option go_package = "shortener/pkg/service/proto";
+
+message ShortenRequest {
+  string url = 1;
+}
+
+message ShortenResponse {
+  string result = 1;
+}
